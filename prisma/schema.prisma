@@ -1,0 +1,63 @@
+generator client { provider = "prisma-client-js" }
+datasource db { provider = "postgresql" url = env("DATABASE_URL") }
+
+enum Role { VIEWER CONTRIBUTOR ADMIN }
+
+model Vendor {
+  id         String   @id @default(cuid())
+  name       String   @unique
+  overview   String?
+  website    String?
+  country    String?
+  regions    String[] @db.Text[]
+  platforms  String[] @db.Text[]
+  industries String[] @db.Text[]
+  status     String   @default("active")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  costTiers  CostTier[]
+  caps       VendorCapability[]
+  feedback   Feedback[]
+}
+
+model Capability {
+  id    String @id @default(cuid())
+  slug  String @unique
+  name  String
+  desc  String?
+  vendors VendorCapability[]
+}
+
+model VendorCapability {
+  vendor   Vendor     @relation(fields: [vendorId], references: [id])
+  vendorId String
+  cap      Capability @relation(fields: [capId], references: [id])
+  capId    String
+  @@id([vendorId, capId])
+}
+
+model CostTier {
+  id           String  @id @default(cuid())
+  vendor       Vendor  @relation(fields: [vendorId], references: [id])
+  vendorId     String
+  tierLabel    String
+  hourlyUsdMin Float?
+  hourlyUsdMax Float?
+  currency     String  @default("USD")
+  notes        String?
+}
+
+model Feedback {
+  id           String   @id @default(cuid())
+  vendor       Vendor   @relation(fields: [vendorId], references: [id])
+  vendorId     String
+  author       String?
+  ratingQuality Int?
+  ratingSpeed   Int?
+  ratingComm    Int?
+  text         String?
+  tags         String[] @db.Text[]
+  link         String?
+  isPrivate    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+}

@@ -1,0 +1,14 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/db';
+
+export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+  const v = await prisma.vendor.findUnique({ where: { id: params.id }, include: { costTiers: true, caps: { include: { cap: true } }, feedback: true } });
+  if (!v) return NextResponse.json({ error: 'not found' }, { status: 404 });
+  return NextResponse.json({ data: v });
+}
+
+export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+  const body = await req.json();
+  const v = await prisma.vendor.update({ where: { id: params.id }, data: body });
+  return NextResponse.json({ data: v });
+}
