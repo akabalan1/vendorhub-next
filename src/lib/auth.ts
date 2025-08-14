@@ -5,37 +5,33 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/db";
 import { Resend } from "resend";
 
-// ---- Extend Session: add id and isAdmin
+// ---- Session augmentation
 declare module "next-auth" {
   interface Session {
-    user: {
-      id: string;
-      isAdmin?: boolean;
-    } & DefaultSession["user"];
+    user: { id: string; isAdmin?: boolean } & DefaultSession["user"];
   }
 }
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-// Comma-separated list of admin emails (optional)
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || "")
   .split(",")
   .map((e) => e.trim().toLowerCase())
   .filter(Boolean);
 
-const authConfig = {
+export const authConfig = {
   adapter: PrismaAdapter(prisma),
   session: { strategy: "database" as const },
+
+  // 👇 tell NextAuth what your sign-in page is
   pages: {
-    signIn: "/signin", // where unauthorized users get redirected
+    signIn: "/signin",
   },
+
   providers: [
     EmailProvider({
-      // A minimal SMTP object is still required by the provider’s runtime checks.
       server: { host: "localhost", port: 587, auth: { user: "noop", pass: "noop" } },
-      from: process.env.EMAIL_FROM!, // e.g. "VendorHub <auth@yourdomain.com>"
-
-      // We actually send mail via Resend:
+      from: process.env.EMAIL_FROM!,
       async sendVerificationRequest({ identifier, url }) {
         const { host } = new URL(url);
         const result = await resend.emails.send({
@@ -57,28 +53,19 @@ const authConfig = {
   ],
 
   callbacks: {
-    /**
-     * This is evaluated by the exported middleware (below).
-     * Return true only when the request has an authenticated user.
-     * If false, NextAuth’s middleware redirects to pages.signIn.
-     */
-    authorized({ auth }: { auth: { user?: { email?: string | null } } | null }) {
-      return !!auth?.user?.email; // gate everything behind a session
-    },
-
-    // Gate sign-in to @meta.com addresses
+    // Allow only @meta.com to sign in
     async signIn(params: {
-      user: { email?: string | null } | null;
+      user: { email?: string | null };
       account?: unknown;
       profile?: unknown;
-      email?: { email?: string | null };
-      credentials?: Record<string, unknown>;
+      email?: { verificationRequest?: boolean };
+      credentials?: unknown;
     }) {
-      const addr = (params.email?.email ?? params.user?.email ?? "").toLowerCase();
+      const addr = (params.user?.email ?? "").toLowerCase();
       return addr.endsWith("@meta.com");
     },
 
-    // Populate session with id + isAdmin flag
+    // Put id + isAdmin in the session
     async session(params: {
       session: import("next-auth").Session;
       user: { id: string; email?: string | null; isAdmin?: boolean };
@@ -92,23 +79,39 @@ const authConfig = {
       }
       return session;
     },
+
+    /**
+     * Used by NextAuth's middleware (exported below).
+     * Redirect to /signin unless the request has an authenticated user.
+     */
+    authorized({ auth, request }: { auth: import("next-auth").Session | null; request: Request }) {
+      const { pathname } = new URL(request.url);
+      const isPublic =
+        pathname.startsWith("/signin") ||
+        pathname.startsWith("/api/auth") ||
+        pathname.startsWith("/api/health") ||
+        pathname.startsWith("/_next") ||
+        pathname === "/favicon.ico" ||
+        pathname === "/robots.txt" ||
+        pathname === "/sitemap.xml";
+
+      if (isPublic) return true;
+      return !!auth?.user?.email;
+    },
   },
 
   events: {
-    // Mark newly-created users as admin if their email is in ADMIN_EMAILS
-    async createUser(message: { user: { id: string; email?: string | null } }) {
+    async createUser(message: { user: { id?: string; email?: string | null } }) {
+      const id = message.user.id;
+      if (!id) return;
       const emailLower = (message.user.email ?? "").toLowerCase();
       if (ADMIN_EMAILS.includes(emailLower)) {
-        await prisma.user.update({
-          where: { id: message.user.id },
-          data: { isAdmin: true },
-        });
+        await prisma.user.update({ where: { id }, data: { isAdmin: true } });
       }
     },
   },
 
   trustHost: true,
-};
+} satisfies Parameters<typeof NextAuth>[0];
 
-// Expose NextAuth helpers (and the middleware entry used above)
-export const { handlers, auth, signIn, signOut } = NextAuth(authConfig as any);
+export const { handlers, auth, signIn, signOut } = NextAuth(authConfig);
