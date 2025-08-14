@@ -25,13 +25,13 @@ async function fetchVendors(sp: SP) {
   const ratingMin = Number(sp.ratingMin ?? 0);
   const tierLabel = (sp.tier as string) || '';
   const tierMax = Number(sp.tierMax ?? 0);
-  const svcSel = csv(sp.svc as string); // NEW: ['WHITE_GLOVE','FTE',...]
+  const svcSel = csv(sp.svc as string);
   const sort = (sp.sort as string) || 'rating_desc';
 
   const where: any = {};
   if (q) where.name = { contains: q, mode: 'insensitive' };
   if (capsSel.length) where.caps = { some: { cap: { slug: { in: capsSel } } } };
-  if (svcSel.length) where.serviceOptions = { hasEvery: svcSel }; // require ALL selected options
+  if (svcSel.length) where.serviceOptions = { hasEvery: svcSel };
 
   const vendors = await prisma.vendor.findMany({
     where,
@@ -62,9 +62,10 @@ async function fetchVendors(sp: SP) {
     return {
       id: v.id,
       name: v.name,
-      platforms: v.platforms,
+      // CHANGED: include overview in rows
+      overview: v.overview ?? null,
       capabilities: v.caps.map(c => c.cap),
-      serviceOptions: v.serviceOptions, // NEW
+      serviceOptions: v.serviceOptions,
       tierCosts,
       minTierCost,
       selectedTierCost,
