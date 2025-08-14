@@ -8,6 +8,12 @@ function parseCSV(v: string | null) {
   return (v ?? '').split(',').map(s => s.trim()).filter(Boolean);
 }
 
+const SERVICE_OPTIONS = [
+  { value: 'WHITE_GLOVE',  label: 'White Glove' },
+  { value: 'CROWD_SOURCED',label: 'Crowd Sourced' },
+  { value: 'FTE',          label: 'FTE' }
+];
+
 export default function Filters({
   vendorOptions,
   capabilityOptions,
@@ -22,27 +28,17 @@ export default function Filters({
   const searchParams = useSearchParams();
 
   const [q, setQ] = React.useState(searchParams.get('q') ?? '');
-  const [vendors, setVendors] = React.useState<string[]>(
-    parseCSV(searchParams.get('vendors')),
-  );
-  const [caps, setCaps] = React.useState<string[]>(
-    parseCSV(searchParams.get('caps')),
-  );
-  const [ratingMin, setRatingMin] = React.useState<string | null>(
-    searchParams.get('ratingMin'),
-  );
-  const [tierLabel, setTierLabel] = React.useState(
-    searchParams.get('tier') ?? '',
-  );
+  const [vendors, setVendors] = React.useState<string[]>(parseCSV(searchParams.get('vendors')));
+  const [caps, setCaps] = React.useState<string[]>(parseCSV(searchParams.get('caps')));
+  const [ratingMin, setRatingMin] = React.useState<string | null>(searchParams.get('ratingMin'));
+  const [tierLabel, setTierLabel] = React.useState(searchParams.get('tier') ?? '');
   const [tierMax, setTierMax] = React.useState(searchParams.get('tierMax') ?? '');
-  const [sort, setSort] = React.useState(
-    searchParams.get('sort') ?? 'rating_desc',
-  );
+  const [svc, setSvc] = React.useState<string[]>(parseCSV(searchParams.get('svc'))); // NEW
+  const [sort, setSort] = React.useState(searchParams.get('sort') ?? 'rating_desc');
 
   React.useEffect(() => {
     const p = new URLSearchParams(searchParams.toString());
-    const setList = (k: string, arr: string[]) =>
-      arr.length ? p.set(k, arr.join(',')) : p.delete(k);
+    const setList = (k: string, arr: string[]) => arr.length ? p.set(k, arr.join(',')) : p.delete(k);
 
     q ? p.set('q', q) : p.delete('q');
     setList('vendors', vendors);
@@ -50,11 +46,12 @@ export default function Filters({
     ratingMin ? p.set('ratingMin', ratingMin) : p.delete('ratingMin');
     tierLabel ? p.set('tier', tierLabel) : p.delete('tier');
     tierMax ? p.set('tierMax', tierMax) : p.delete('tierMax');
+    setList('svc', svc); // NEW
     sort ? p.set('sort', sort) : p.delete('sort');
 
     router.replace(`${pathname}?${p.toString()}`, { scroll: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, vendors, caps, ratingMin, tierLabel, tierMax, sort]);
+  }, [q, vendors, caps, ratingMin, tierLabel, tierMax, svc, sort]);
 
   const tierOptions = tierLabels.map(t => ({ value: t, label: t }));
 
@@ -70,25 +67,20 @@ export default function Filters({
       </div>
 
       <div className="md:col-span-3">
-        <MultiSelect
-          label="Vendors"
-          options={vendorOptions}
-          selected={vendors}
-          onChange={setVendors}
-        />
+        <MultiSelect label="Vendors" options={vendorOptions} selected={vendors} onChange={setVendors} />
       </div>
 
       <div className="md:col-span-3">
-        <MultiSelect
-          label="Capabilities"
-          options={capabilityOptions}
-          selected={caps}
-          onChange={setCaps}
-        />
+        <MultiSelect label="Capabilities" options={capabilityOptions} selected={caps} onChange={setCaps} />
       </div>
 
       <div className="md:col-span-2 flex items-center gap-2">
         <RatingFilter value={ratingMin} onChange={setRatingMin} />
+      </div>
+
+      {/* NEW: Service Options multiselect */}
+      <div className="md:col-span-3">
+        <MultiSelect label="Service Options" options={SERVICE_OPTIONS} selected={svc} onChange={setSvc} />
       </div>
 
       <div className="md:col-span-3 flex items-center gap-2">
@@ -100,11 +92,7 @@ export default function Filters({
             onChange={e => setTierLabel(e.target.value)}
           >
             <option value="">Any tier</option>
-            {tierOptions.map(o => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
+            {tierOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         </div>
         <input
