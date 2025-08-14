@@ -1,5 +1,5 @@
 // src/lib/auth.ts
-import NextAuth, { type DefaultSession, type Session } from "next-auth";
+import NextAuth, { type DefaultSession } from "next-auth";
 import EmailProvider from "next-auth/providers/email";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/db";
@@ -27,20 +27,15 @@ export const authConfig = {
   adapter: PrismaAdapter(prisma),
   session: { strategy: "database" as const },
 
-  // Use our custom sign-in page
-  pages: { signIn: "/signin" },
-
   providers: [
     EmailProvider({
-      // Minimal SMTP to satisfy runtime checks; actual sending is via Resend below
+      // Minimal SMTP to satisfy runtime checks (not used when we override sendVerificationRequest)
       server: {
         host: "localhost",
         port: 587,
         auth: { user: "noop", pass: "noop" },
       },
       from: process.env.EMAIL_FROM!, // e.g. "VendorHub <auth@yourdomain.com>"
-
-      // Send magic link via Resend
       async sendVerificationRequest({ identifier, url }) {
         const { host } = new URL(url);
         const result = await resend.emails.send({
@@ -62,48 +57,65 @@ export const authConfig = {
   ],
 
   callbacks: {
-    // Only allow @meta.com emails
-    async signIn(params: any) {
-      const addr = String(params?.user?.email || "").toLowerCase();
+    // Enforce @meta.com sign-ins
+    async signIn(params: {
+      user: { email?: string | null };
+      account?: unknown;
+      profile?: unknown;
+      email?: { verificationRequest?: boolean };
+      credentials?: unknown;
+    }) {
+      const addr = (params.user?.email ?? "").toLowerCase();
       return addr.endsWith("@meta.com");
     },
 
-    // Add id and isAdmin to the session object
-    async session({
-      session,
-      user,
-    }: {
-      session: Session;
-      user: { id?: string; email?: string | null; isAdmin?: boolean };
+    // Add id + isAdmin on the session
+    async session(params: {
+      session: import("next-auth").Session;
+      user: { id: string; email?: string | null; isAdmin?: boolean };
+      token?: unknown;
     }) {
+      const { session, user } = params;
       if (session.user) {
-        if (user.id) {
-          // only assign when present to satisfy typing at runtime
-          (session.user as any).id = user.id;
-        }
+        session.user.id = user.id;
         const emailLower = (user.email ?? "").toLowerCase();
         session.user.isAdmin = !!user.isAdmin || ADMIN_EMAILS.includes(emailLower);
       }
       return session;
     },
 
-    // Used by middleware’s auth() to decide if a request is authorized
-    authorized({ auth }: { auth: Session | null }) {
+    /**
+     * 👇 This powers the edge middleware via `export { auth as middleware }`
+     * Return true to allow the request, false to block (and redirect to /signin).
+     */
+    authorized({ auth, request }: { auth: import("next-auth").Session | null; request: Request }) {
+      const url = new URL(request.url);
+      const { pathname } = url;
+
+      // Public routes (no auth needed)
+      const isPublic =
+        pathname.startsWith("/signin") ||
+        pathname.startsWith("/api/auth") ||
+        pathname.startsWith("/api/health") ||
+        pathname.startsWith("/_next") ||
+        pathname === "/favicon.ico" ||
+        pathname === "/robots.txt" ||
+        pathname === "/sitemap.xml";
+
+      if (isPublic) return true;
+
+      // All other routes require a session
       return !!auth?.user?.email;
     },
   },
 
   events: {
-    // Auto-mark user as admin if their email is in ADMIN_EMAILS
-    async createUser(message: any) {
-      const user = message?.user as { id?: string; email?: string | null } | undefined;
-      if (!user?.id) return; // nothing to do if id is missing
-      const emailLower = (user.email ?? "").toLowerCase();
+    async createUser(message: { user: { id?: string; email?: string | null } }) {
+      const id = message.user.id;
+      if (!id) return; // type-safety: id can be undefined in the generic type
+      const emailLower = (message.user.email ?? "").toLowerCase();
       if (ADMIN_EMAILS.includes(emailLower)) {
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { isAdmin: true },
-        });
+        await prisma.user.update({ where: { id }, data: { isAdmin: true } });
       }
     },
   },
