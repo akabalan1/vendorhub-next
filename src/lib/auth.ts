@@ -32,7 +32,7 @@ export const authConfig = {
 
   providers: [
     EmailProvider({
-      // Minimal SMTP to satisfy runtime checks; actual sending is below
+      // Minimal SMTP to satisfy runtime checks; actual sending is via Resend below
       server: {
         host: "localhost",
         port: 587,
@@ -74,17 +74,20 @@ export const authConfig = {
       user,
     }: {
       session: Session;
-      user: { id: string; email?: string | null; isAdmin?: boolean };
+      user: { id?: string; email?: string | null; isAdmin?: boolean };
     }) {
       if (session.user) {
-        session.user.id = user.id;
+        if (user.id) {
+          // only assign when present to satisfy typing at runtime
+          (session.user as any).id = user.id;
+        }
         const emailLower = (user.email ?? "").toLowerCase();
         session.user.isAdmin = !!user.isAdmin || ADMIN_EMAILS.includes(emailLower);
       }
       return session;
     },
 
-    // 👇 Used by middleware’s `auth()` to decide if a request is authorized
+    // Used by middleware’s auth() to decide if a request is authorized
     authorized({ auth }: { auth: Session | null }) {
       return !!auth?.user?.email;
     },
@@ -92,7 +95,9 @@ export const authConfig = {
 
   events: {
     // Auto-mark user as admin if their email is in ADMIN_EMAILS
-    async createUser({ user }: { user: { id: string; email?: string | null } }) {
+    async createUser(message: any) {
+      const user = message?.user as { id?: string; email?: string | null } | undefined;
+      if (!user?.id) return; // nothing to do if id is missing
       const emailLower = (user.email ?? "").toLowerCase();
       if (ADMIN_EMAILS.includes(emailLower)) {
         await prisma.user.update({
