@@ -5,7 +5,7 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/db";
 import { Resend } from "resend";
 
-// Augment the Session type so session.user has id & isAdmin
+// ---- Session augmentation: add id and isAdmin to session.user
 declare module "next-auth" {
   interface Session {
     user: {
@@ -25,8 +25,7 @@ const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || "")
 
 const authConfig = {
   adapter: PrismaAdapter(prisma),
-  // With Prisma Session model, you can use "database" sessions.
-  // If you want JWT sessions instead, switch to { strategy: "jwt" }.
+  // Using database sessions because you have the Session model in Prisma
   session: { strategy: "database" as const },
   providers: [
     EmailProvider({
@@ -52,11 +51,25 @@ const authConfig = {
   ],
   callbacks: {
     // Only allow @meta.com emails
-    async signIn({ user, email }) {
-      const addr = (email?.email ?? user.email ?? "").toLowerCase();
+    async signIn({
+      user,
+      email,
+    }: {
+      user: { email?: string | null } | null;
+      email?: { email?: string | null };
+    }) {
+      const addr = (email?.email ?? user?.email ?? "").toLowerCase();
       return addr.endsWith("@meta.com");
     },
-    async session({ session, user }) {
+
+    // Inject id and isAdmin into the session
+    async session({
+      session,
+      user,
+    }: {
+      session: import("next-auth").Session;
+      user: { id: string; email?: string | null; isAdmin?: boolean };
+    }) {
       if (session.user) {
         session.user.id = user.id;
         const emailLower = (user.email ?? "").toLowerCase();
@@ -66,8 +79,8 @@ const authConfig = {
     },
   },
   events: {
-    // Make an initial admin if their email is in ADMIN_EMAILS
-    async createUser({ user }) {
+    // Auto-mark as admin if their email is in ADMIN_EMAILS on first creation
+    async createUser({ user }: { user: { id: string; email?: string | null } }) {
       const emailLower = (user.email ?? "").toLowerCase();
       if (ADMIN_EMAILS.includes(emailLower)) {
         await prisma.user.update({
