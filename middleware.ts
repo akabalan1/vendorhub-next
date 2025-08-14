@@ -1,7 +1,10 @@
-// middleware.ts  (project root, same level as package.json)
+// middleware.ts  (MUST be at repo root, same level as package.json)
 export { auth as middleware } from "@/lib/auth";
 
-// Run on basically everything except static/image
+// Protect everything except the listed public paths
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: [
+    // match every path
+    "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|api/auth|api/health|signin).*)",
+  ],
 };
