@@ -17,7 +17,7 @@
     "zod": "^3.23.8",
     "clsx": "^2.1.1",
     "next-auth": "^5.0.0",
-    "@auth/prisma-adapter": "^1.7.4",
+    "@auth/prisma-adapter": "^2.10.0",
     "resend": "^3.4.0"
   },
   "devDependencies": {
@@ -30,5 +30,8 @@
     "autoprefixer": "10.4.19",
     "postcss": "8.4.38",
     "tailwindcss": "3.4.4"
+  },
+  "engines": {
+    "node": ">=18.17 <21"
   }
 }
