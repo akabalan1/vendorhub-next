@@ -9,6 +9,8 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ----- Enums -----
+
 enum Role {
   VIEWER
   CONTRIBUTOR
@@ -21,6 +23,8 @@ enum ServiceOption {
   FTE
 }
 
+// ----- Core models -----
+
 model Vendor {
   id                 String          @id @default(cuid())
   name               String          @unique
@@ -32,6 +36,7 @@ model Vendor {
   industries         String[]        @db.Text
   serviceOptions     ServiceOption[] @default([])
 
+  // New: one descriptive field (not a rating)
   raterTrainingSpeed String?
 
   status     String   @default("active")
@@ -41,6 +46,9 @@ model Vendor {
   costTiers  CostTier[]
   caps       VendorCapability[]
   feedback   Feedback[]
+
+  @@index([name])
+  @@index([status])
 }
 
 model Capability {
@@ -69,6 +77,8 @@ model CostTier {
   hourlyUsdMax Float?
   currency     String  @default("USD")
   notes        String?
+
+  @@index([vendorId, tierLabel])
 }
 
 model Feedback {
@@ -86,19 +96,20 @@ model Feedback {
   createdAt     DateTime @default(now())
 }
 
-/* ---------- NextAuth models (standard) ---------- */
+// ----- NextAuth models (standard) -----
+
 model User {
-  id            String   @id @default(cuid())
-  name          String?
-  email         String?  @unique
-  emailVerified DateTime?
-  image         String?
+  id             String    @id @default(cuid())
+  name           String?
+  email          String?   @unique
+  emailVerified  DateTime?
+  image          String?
 
-  // Custom for RBAC
-  isAdmin       Boolean  @default(false)
+  // Custom RBAC flag
+  isAdmin        Boolean   @default(false)
 
-  accounts      Account[]
-  sessions      Session[]
+  accounts       Account[]
+  sessions       Session[]
 }
 
 model Account {
