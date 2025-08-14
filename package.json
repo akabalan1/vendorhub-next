@@ -16,7 +16,7 @@
     "react-dom": "18.2.0",
     "zod": "^3.23.8",
     "clsx": "^2.1.1",
-    "next-auth": "^5.0.0",
+    "next-auth": "5.0.0-beta.27",
     "@auth/prisma-adapter": "^2.10.0",
     "resend": "^3.4.0"
   },
