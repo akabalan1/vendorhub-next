@@ -15,8 +15,8 @@ export default function VendorTable({
           <tr>
             <th className="px-3 py-2">Vendor</th>
             <th className="px-3 py-2">Capabilities</th>
-            <th className="px-3 py-2">Platforms</th>
-            {/* NEW: Service Options column */}
+            {/* CHANGED: Platforms -> Overview */}
+            <th className="px-3 py-2">Overview</th>
             <th className="px-3 py-2">Service Options</th>
             <th className="px-3 py-2 text-right">{costHeader}</th>
             <th className="px-3 py-2 text-right">Avg ★</th>
@@ -32,10 +32,10 @@ export default function VendorTable({
               <td className="px-3 py-3 text-gray-700">
                 {r.capabilities?.map((c: any) => c.slug).join(', ') || '—'}
               </td>
+              {/* CHANGED: show overview text instead of platforms */}
               <td className="px-3 py-3 text-gray-700">
-                {r.platforms?.join(', ') || '—'}
+                {r.overview ? r.overview : '—'}
               </td>
-              {/* NEW: render service options */}
               <td className="px-3 py-3 text-gray-700">
                 {Array.isArray(r.serviceOptions) && r.serviceOptions.length
                   ? r.serviceOptions
