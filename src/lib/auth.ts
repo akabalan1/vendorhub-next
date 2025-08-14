@@ -5,7 +5,7 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/db";
 import { Resend } from "resend";
 
-// ---- Session augmentation: add id and isAdmin to session.user
+// ---- Extend Session: add id and isAdmin
 declare module "next-auth" {
   interface Session {
     user: {
@@ -17,25 +17,25 @@ declare module "next-auth" {
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-// Comma-separated list of admin emails in env
+// Comma-separated list of admin emails (optional)
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || "")
   .split(",")
   .map((e) => e.trim().toLowerCase())
   .filter(Boolean);
 
-export const authConfig = {
+const authConfig = {
   adapter: PrismaAdapter(prisma),
   session: { strategy: "database" as const },
-
+  pages: {
+    signIn: "/signin", // where unauthorized users get redirected
+  },
   providers: [
     EmailProvider({
-      // Minimal SMTP to satisfy runtime checks (not used when we override sendVerificationRequest)
-      server: {
-        host: "localhost",
-        port: 587,
-        auth: { user: "noop", pass: "noop" },
-      },
+      // A minimal SMTP object is still required by the provider’s runtime checks.
+      server: { host: "localhost", port: 587, auth: { user: "noop", pass: "noop" } },
       from: process.env.EMAIL_FROM!, // e.g. "VendorHub <auth@yourdomain.com>"
+
+      // We actually send mail via Resend:
       async sendVerificationRequest({ identifier, url }) {
         const { host } = new URL(url);
         const result = await resend.emails.send({
@@ -57,19 +57,28 @@ export const authConfig = {
   ],
 
   callbacks: {
-    // Enforce @meta.com sign-ins
+    /**
+     * This is evaluated by the exported middleware (below).
+     * Return true only when the request has an authenticated user.
+     * If false, NextAuth’s middleware redirects to pages.signIn.
+     */
+    authorized({ auth }: { auth: { user?: { email?: string | null } } | null }) {
+      return !!auth?.user?.email; // gate everything behind a session
+    },
+
+    // Gate sign-in to @meta.com addresses
     async signIn(params: {
-      user: { email?: string | null };
+      user: { email?: string | null } | null;
       account?: unknown;
       profile?: unknown;
-      email?: { verificationRequest?: boolean };
-      credentials?: unknown;
+      email?: { email?: string | null };
+      credentials?: Record<string, unknown>;
     }) {
-      const addr = (params.user?.email ?? "").toLowerCase();
+      const addr = (params.email?.email ?? params.user?.email ?? "").toLowerCase();
       return addr.endsWith("@meta.com");
     },
 
-    // Add id + isAdmin on the session
+    // Populate session with id + isAdmin flag
     async session(params: {
       session: import("next-auth").Session;
       user: { id: string; email?: string | null; isAdmin?: boolean };
@@ -83,44 +92,23 @@ export const authConfig = {
       }
       return session;
     },
-
-    /**
-     * 👇 This powers the edge middleware via `export { auth as middleware }`
-     * Return true to allow the request, false to block (and redirect to /signin).
-     */
-    authorized({ auth, request }: { auth: import("next-auth").Session | null; request: Request }) {
-      const url = new URL(request.url);
-      const { pathname } = url;
-
-      // Public routes (no auth needed)
-      const isPublic =
-        pathname.startsWith("/signin") ||
-        pathname.startsWith("/api/auth") ||
-        pathname.startsWith("/api/health") ||
-        pathname.startsWith("/_next") ||
-        pathname === "/favicon.ico" ||
-        pathname === "/robots.txt" ||
-        pathname === "/sitemap.xml";
-
-      if (isPublic) return true;
-
-      // All other routes require a session
-      return !!auth?.user?.email;
-    },
   },
 
   events: {
-    async createUser(message: { user: { id?: string; email?: string | null } }) {
-      const id = message.user.id;
-      if (!id) return; // type-safety: id can be undefined in the generic type
+    // Mark newly-created users as admin if their email is in ADMIN_EMAILS
+    async createUser(message: { user: { id: string; email?: string | null } }) {
       const emailLower = (message.user.email ?? "").toLowerCase();
       if (ADMIN_EMAILS.includes(emailLower)) {
-        await prisma.user.update({ where: { id }, data: { isAdmin: true } });
+        await prisma.user.update({
+          where: { id: message.user.id },
+          data: { isAdmin: true },
+        });
       }
     },
   },
 
   trustHost: true,
-} satisfies Parameters<typeof NextAuth>[0];
+};
 
-export const { handlers, auth, signIn, signOut } = NextAuth(authConfig);
+// Expose NextAuth helpers (and the middleware entry used above)
+export const { handlers, auth, signIn, signOut } = NextAuth(authConfig as any);
