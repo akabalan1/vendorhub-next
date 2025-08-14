@@ -83,6 +83,10 @@ export const authConfig = {
      */
     authorized({ auth, request }: { auth: import("next-auth").Session | null; request: Request }) {
       const { pathname } = new URL(request.url);
+      console.log("middleware authorized", {
+        pathname,
+        user: auth?.user?.email,
+      });
       const isPublic =
         pathname.startsWith("/signin") ||
         pathname.startsWith("/api/auth") ||
