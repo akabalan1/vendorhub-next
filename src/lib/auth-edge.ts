@@ -1,3 +1,4 @@
+export const runtime = "edge";
 // src/lib/auth-edge.ts
 import NextAuth, { type DefaultSession } from "next-auth";
 import EmailProvider from "next-auth/providers/email";
