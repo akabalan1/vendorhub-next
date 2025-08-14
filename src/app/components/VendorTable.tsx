@@ -1,6 +1,7 @@
 import Link from 'next/link';
 
-export default function VendorTable({ rows }: { rows: any[] }) {
+export default function VendorTable({ rows, tierLabel }: { rows: any[]; tierLabel?: string }) {
+  const costHeader = tierLabel ? `${tierLabel} cost` : 'Min cost';
   return (
     <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
       <table className="min-w-full border-collapse text-sm">
@@ -10,7 +11,7 @@ export default function VendorTable({ rows }: { rows: any[] }) {
             <th className="px-3 py-2">Industries</th>
             <th className="px-3 py-2">Capabilities</th>
             <th className="px-3 py-2">Platforms</th>
-            <th className="px-3 py-2 text-right">Min cost</th>
+            <th className="px-3 py-2 text-right">{costHeader}</th>
             <th className="px-3 py-2 text-right">Avg ★</th>
             <th className="px-3 py-2 text-right">Open</th>
           </tr>
@@ -20,12 +21,13 @@ export default function VendorTable({ rows }: { rows: any[] }) {
             <tr key={r.id} className="border-t border-gray-100 hover:bg-gray-50/60">
               <td className="px-3 py-3 font-medium"><Link href={`/vendor/${r.id}`}>{r.name}</Link></td>
               <td className="px-3 py-3 text-gray-700">{r.industries?.join(', ') || '—'}</td>
-              <td className="px-3 py-3 text-gray-700">
-                {r.capabilities?.map((c: any) => c.slug).join(', ') || '—'}
-              </td>
+              <td className="px-3 py-3 text-gray-700">{r.capabilities?.map((c: any) => c.slug).join(', ') || '—'}</td>
               <td className="px-3 py-3 text-gray-700">{r.platforms?.join(', ') || '—'}</td>
-              <td className="px-3 py-3 text-right">{r.minTierCost != null ? `$${r.minTierCost}/hr` : '—'}</td>
-              <td className="px-3 py-3 text-right">{r.avgRating != null ? r.avgRating : '—'}</td>
+              <td className="px-3 py-3 text-right">
+                {r.selectedTierCost != null ? `$${r.selectedTierCost}/hr` :
+                 r.minTierCost != null ? `$${r.minTierCost}/hr` : '—'}
+              </td>
+              <td className="px-3 py-3 text-right">{r.avgRating ?? '—'}</td>
               <td className="px-3 py-3 text-right">
                 <Link href={`/vendor/${r.id}`} className="rounded-lg border border-gray-300 px-2 py-1 hover:bg-gray-100">View</Link>
               </td>
