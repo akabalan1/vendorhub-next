@@ -66,7 +66,7 @@ model Feedback {
   ratingSpeed   Int?
   ratingComm    Int?
   text          String?
-  tags          String[]
+  tags          String[]   // <-- no @db.Text[] annotation
   link          String?
   isPrivate     Boolean  @default(false)
   createdAt     DateTime @default(now())
