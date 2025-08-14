@@ -32,7 +32,7 @@ export async function middleware(req: NextRequest) {
     url.searchParams.set("callbackUrl", pathname + search);
     return NextResponse.redirect(url);
   }
-
+console.log("middleware session?", session?.user?.email);
   return NextResponse.next();
 }
 
