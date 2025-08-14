@@ -33,7 +33,7 @@ export default function Filters({
   const [ratingMin, setRatingMin] = React.useState<string | null>(searchParams.get('ratingMin'));
   const [tierLabel, setTierLabel] = React.useState(searchParams.get('tier') ?? '');
   const [tierMax, setTierMax] = React.useState(searchParams.get('tierMax') ?? '');
-  const [svc, setSvc] = React.useState<string[]>(parseCSV(searchParams.get('svc'))); // NEW
+  const [svc, setSvc] = React.useState<string[]>(parseCSV(searchParams.get('svc')));
   const [sort, setSort] = React.useState(searchParams.get('sort') ?? 'rating_desc');
 
   React.useEffect(() => {
@@ -46,7 +46,7 @@ export default function Filters({
     ratingMin ? p.set('ratingMin', ratingMin) : p.delete('ratingMin');
     tierLabel ? p.set('tier', tierLabel) : p.delete('tier');
     tierMax ? p.set('tierMax', tierMax) : p.delete('tierMax');
-    setList('svc', svc); // NEW
+    setList('svc', svc);
     sort ? p.set('sort', sort) : p.delete('sort');
 
     router.replace(`${pathname}?${p.toString()}`, { scroll: false });
@@ -78,7 +78,7 @@ export default function Filters({
         <RatingFilter value={ratingMin} onChange={setRatingMin} />
       </div>
 
-      {/* NEW: Service Options multiselect */}
+      {/* Service Options multiselect */}
       <div className="md:col-span-3">
         <MultiSelect label="Service Options" options={SERVICE_OPTIONS} selected={svc} onChange={setSvc} />
       </div>
