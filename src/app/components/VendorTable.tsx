@@ -16,6 +16,8 @@ export default function VendorTable({
             <th className="px-3 py-2">Vendor</th>
             <th className="px-3 py-2">Capabilities</th>
             <th className="px-3 py-2">Platforms</th>
+            {/* NEW: Service Options column */}
+            <th className="px-3 py-2">Service Options</th>
             <th className="px-3 py-2 text-right">{costHeader}</th>
             <th className="px-3 py-2 text-right">Avg ★</th>
             <th className="px-3 py-2 text-right">Open</th>
@@ -32,6 +34,17 @@ export default function VendorTable({
               </td>
               <td className="px-3 py-3 text-gray-700">
                 {r.platforms?.join(', ') || '—'}
+              </td>
+              {/* NEW: render service options */}
+              <td className="px-3 py-3 text-gray-700">
+                {Array.isArray(r.serviceOptions) && r.serviceOptions.length
+                  ? r.serviceOptions
+                      .map((s: string) =>
+                        s === 'WHITE_GLOVE' ? 'White Glove' :
+                        s === 'CROWD_SOURCED' ? 'Crowd Sourced' :
+                        s === 'FTE' ? 'FTE' : s)
+                      .join(', ')
+                  : '—'}
               </td>
               <td className="px-3 py-3 text-right">
                 {Array.isArray(r.tierCosts) && r.tierCosts.length ? (
@@ -64,10 +77,7 @@ export default function VendorTable({
           ))}
           {!rows.length && (
             <tr>
-              <td
-                colSpan={6}
-                className="px-3 py-6 text-center text-gray-500"
-              >
+              <td colSpan={7} className="px-3 py-6 text-center text-gray-500">
                 No vendors match your filters.
               </td>
             </tr>
