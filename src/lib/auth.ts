@@ -25,16 +25,22 @@ const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || "")
 
 const authConfig = {
   adapter: PrismaAdapter(prisma),
-  // Using database sessions because you have the Session model in Prisma
   session: { strategy: "database" as const },
   providers: [
     EmailProvider({
-      from: process.env.EMAIL_FROM!, // <-- REQUIRED by Auth.js Email provider
-      maxAge: 60 * 60 * 24, // 24 hours
+      // ---- Dummy SMTP to satisfy provider runtime check (won't be used)
+      server: {
+        host: "localhost",
+        port: 587,
+        auth: { user: "noop", pass: "noop" },
+      },
+      from: process.env.EMAIL_FROM!, // e.g. "VendorHub <auth@yourdomain.com>"
+
+      // ---- We actually send via Resend here
       async sendVerificationRequest({ identifier, url }) {
         const { host } = new URL(url);
         const result = await resend.emails.send({
-          from: process.env.EMAIL_FROM!, // e.g. "VendorHub <auth@yourdomain.com>"
+          from: process.env.EMAIL_FROM!,
           to: identifier,
           subject: "Sign in to VendorHub",
           html: `
@@ -63,7 +69,7 @@ const authConfig = {
       return addr.endsWith("@meta.com");
     },
 
-    // Inject id and isAdmin into the session
+    // Add id and isAdmin to the session object
     async session({
       session,
       user,
@@ -80,7 +86,7 @@ const authConfig = {
     },
   },
   events: {
-    // Auto-mark as admin if their email is in ADMIN_EMAILS on first creation
+    // Auto-mark user as admin if their email is in ADMIN_EMAILS
     async createUser({ user }: { user: { id: string; email?: string | null } }) {
       const emailLower = (user.email ?? "").toLowerCase();
       if (ADMIN_EMAILS.includes(emailLower)) {
