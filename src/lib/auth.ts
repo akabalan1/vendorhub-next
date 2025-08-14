@@ -27,12 +27,12 @@ export const authConfig = {
   adapter: PrismaAdapter(prisma),
   session: { strategy: "database" as const },
 
-  // Ensure NextAuth knows our custom sign-in page
+  // Use our custom sign-in page
   pages: { signIn: "/signin" },
 
   providers: [
     EmailProvider({
-      // Dummy SMTP (not actually used because we override sendVerificationRequest)
+      // Minimal SMTP to satisfy runtime checks; actual sending is below
       server: {
         host: "localhost",
         port: 587,
@@ -40,7 +40,7 @@ export const authConfig = {
       },
       from: process.env.EMAIL_FROM!, // e.g. "VendorHub <auth@yourdomain.com>"
 
-      // Send magic link using Resend
+      // Send magic link via Resend
       async sendVerificationRequest({ identifier, url }) {
         const { host } = new URL(url);
         const result = await resend.emails.send({
@@ -63,14 +63,8 @@ export const authConfig = {
 
   callbacks: {
     // Only allow @meta.com emails
-    async signIn({
-      user,
-      email,
-    }: {
-      user: { email?: string | null } | null;
-      email?: { email?: string | null };
-    }) {
-      const addr = (email?.email ?? user?.email ?? "").toLowerCase();
+    async signIn(params: any) {
+      const addr = String(params?.user?.email || "").toLowerCase();
       return addr.endsWith("@meta.com");
     },
 
@@ -90,9 +84,8 @@ export const authConfig = {
       return session;
     },
 
-    // 👇 This powers the middleware gate (typed to avoid implicit any)
+    // 👇 Used by middleware’s `auth()` to decide if a request is authorized
     authorized({ auth }: { auth: Session | null }) {
-      // Return true only when a session user exists
       return !!auth?.user?.email;
     },
   },
