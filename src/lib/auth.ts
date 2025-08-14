@@ -1,5 +1,5 @@
 // src/lib/auth.ts
-import NextAuth, { type DefaultSession } from "next-auth";
+import NextAuth, { type DefaultSession, type Session } from "next-auth";
 import EmailProvider from "next-auth/providers/email";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/db";
@@ -23,27 +23,16 @@ const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || "")
   .map((e) => e.trim().toLowerCase())
   .filter(Boolean);
 
-export const {
-  handlers,
-  auth,
-  signIn,
-  signOut,
-} = NextAuth({
+export const authConfig = {
   adapter: PrismaAdapter(prisma),
-  session: { strategy: "database" }, // keep "database" since you have Session model
-  trustHost: true,
-  secret: process.env.NEXTAUTH_SECRET,
+  session: { strategy: "database" as const },
 
-  // 👇 Tell NextAuth where your sign-in page is.
-  // If your page is at src/app/(auth)/signin/page.tsx, the route is "/signin".
-  // If you kept it under /auth/signin, change this to "/auth/signin".
-  pages: {
-    signIn: "/signin",
-  },
+  // Ensure NextAuth knows our custom sign-in page
+  pages: { signIn: "/signin" },
 
   providers: [
     EmailProvider({
-      // Dummy SMTP to satisfy runtime check; we actually send via Resend below.
+      // Dummy SMTP (not actually used because we override sendVerificationRequest)
       server: {
         host: "localhost",
         port: 587,
@@ -51,7 +40,7 @@ export const {
       },
       from: process.env.EMAIL_FROM!, // e.g. "VendorHub <auth@yourdomain.com>"
 
-      // Send magic link via Resend
+      // Send magic link using Resend
       async sendVerificationRequest({ identifier, url }) {
         const { host } = new URL(url);
         const result = await resend.emails.send({
@@ -73,7 +62,7 @@ export const {
   ],
 
   callbacks: {
-    // Only allow @meta.com emails to complete sign-in
+    // Only allow @meta.com emails
     async signIn({
       user,
       email,
@@ -85,18 +74,12 @@ export const {
       return addr.endsWith("@meta.com");
     },
 
-    // 👇 This powers the middleware gate.
-    // Return true only when a session user exists.
-    authorized({ auth }) {
-      return !!auth?.user?.email;
-    },
-
     // Add id and isAdmin to the session object
     async session({
       session,
       user,
     }: {
-      session: import("next-auth").Session;
+      session: Session;
       user: { id: string; email?: string | null; isAdmin?: boolean };
     }) {
       if (session.user) {
@@ -105,6 +88,12 @@ export const {
         session.user.isAdmin = !!user.isAdmin || ADMIN_EMAILS.includes(emailLower);
       }
       return session;
+    },
+
+    // 👇 This powers the middleware gate (typed to avoid implicit any)
+    authorized({ auth }: { auth: Session | null }) {
+      // Return true only when a session user exists
+      return !!auth?.user?.email;
     },
   },
 
@@ -120,4 +109,8 @@ export const {
       }
     },
   },
-} as any);
+
+  trustHost: true,
+} satisfies Parameters<typeof NextAuth>[0];
+
+export const { handlers, auth, signIn, signOut } = NextAuth(authConfig);
