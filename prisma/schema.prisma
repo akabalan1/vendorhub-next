@@ -1,30 +1,35 @@
-generator client {
-  provider = "prisma-client-js"
-}
+generator client { provider = "prisma-client-js" }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-enum Role {
-  VIEWER
-  CONTRIBUTOR
-  ADMIN
+enum Role { VIEWER CONTRIBUTOR ADMIN } // reserved for future RBAC
+
+// NEW: service options enum
+enum ServiceOption {
+  WHITE_GLOVE
+  CROWD_SOURCED
+  FTE
 }
 
 model Vendor {
-  id         String   @id @default(cuid())
-  name       String   @unique
-  overview   String?
-  website    String?
-  country    String?
-  regions    String[]
-  platforms  String[]
-  industries String[]
+  id             String         @id @default(cuid())
+  name           String         @unique
+  overview       String?
+  website        String?
+  country        String?
+  regions        String[]       @db.Text[]
+  platforms      String[]       @db.Text[]
+  industries     String[]       @db.Text[]
+  // NEW: array of service options
+  serviceOptions ServiceOption[] @default([])
+
   status     String   @default("active")
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+
   costTiers  CostTier[]
   caps       VendorCapability[]
   feedback   Feedback[]
@@ -66,7 +71,7 @@ model Feedback {
   ratingSpeed   Int?
   ratingComm    Int?
   text          String?
-  tags          String[]   // <-- no @db.Text[] annotation
+  tags          String[] @db.Text[]
   link          String?
   isPrivate     Boolean  @default(false)
   createdAt     DateTime @default(now())
