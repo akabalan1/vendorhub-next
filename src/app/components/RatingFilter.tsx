@@ -13,6 +13,7 @@ export default function RatingFilter({
 }) {
   const [open, setOpen] = React.useState(false);
   const label = value ? `${value}+` : 'Any rating';
+
   return (
     <div className="relative">
       <button
@@ -27,15 +28,21 @@ export default function RatingFilter({
         <div className="absolute z-20 mt-1 w-48 rounded-xl border border-gray-200 bg-white p-2 shadow-lg">
           <button
             className="block w-full rounded-lg px-2 py-1 text-left text-sm hover:bg-gray-50"
-            onClick={() => { onChange(null); setOpen(false); }}
+            onClick={() => {
+              onChange(null);
+              setOpen(false);
+            }}
           >
             Any rating
           </button>
-          {STEPS.map((n) => (
+          {STEPS.map(n => (
             <button
               key={n}
               className="flex w-full items-center justify-between rounded-lg px-2 py-1 text-left text-sm hover:bg-gray-50"
-              onClick={() => { onChange(String(n)); setOpen(false); }}
+              onClick={() => {
+                onChange(String(n));
+                setOpen(false);
+              }}
             >
               <span>{n.toFixed(1)}</span>
               <Stars value={n} />
