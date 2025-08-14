@@ -1,5 +1,5 @@
 // middleware.ts (at repo root)
-export { default } from "next-auth/middleware";
+export { auth as middleware } from "@/lib/auth-edge";
 
 export const config = {
   matcher: [
