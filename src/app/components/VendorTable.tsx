@@ -15,8 +15,9 @@ export default function VendorTable({
           <tr>
             <th className="px-3 py-2">Vendor</th>
             <th className="px-3 py-2">Capabilities</th>
-            {/* CHANGED: Platforms -> Overview */}
             <th className="px-3 py-2">Overview</th>
+            {/* NEW column */}
+            <th className="px-3 py-2">Rater Training</th>
             <th className="px-3 py-2">Service Options</th>
             <th className="px-3 py-2 text-right">{costHeader}</th>
             <th className="px-3 py-2 text-right">Avg ★</th>
@@ -24,7 +25,7 @@ export default function VendorTable({
           </tr>
         </thead>
         <tbody>
-          {rows.map(r => (
+          {rows.map((r) => (
             <tr key={r.id} className="border-t border-gray-100 hover:bg-gray-50/60">
               <td className="px-3 py-3 font-medium">
                 <Link href={`/vendor/${r.id}`}>{r.name}</Link>
@@ -32,9 +33,10 @@ export default function VendorTable({
               <td className="px-3 py-3 text-gray-700">
                 {r.capabilities?.map((c: any) => c.slug).join(', ') || '—'}
               </td>
-              {/* CHANGED: show overview text instead of platforms */}
-              <td className="px-3 py-3 text-gray-700">
-                {r.overview ? r.overview : '—'}
+              <td className="px-3 py-3 text-gray-700">{r.overview ?? '—'}</td>
+              {/* NEW cell */}
+                <td className="px-3 py-3 text-gray-700">
+                {r.raterTrainingSpeed ?? '—'}
               </td>
               <td className="px-3 py-3 text-gray-700">
                 {Array.isArray(r.serviceOptions) && r.serviceOptions.length
@@ -51,9 +53,7 @@ export default function VendorTable({
                   <div className="flex flex-col items-end gap-0.5">
                     {r.tierCosts.map((t: any) => (
                       <div key={t.label} className="whitespace-nowrap">
-                        <span className="text-xs uppercase text-gray-500">
-                          {t.label}:
-                        </span>{' '}
+                        <span className="text-xs uppercase text-gray-500">{t.label}:</span>{' '}
                         <span className="font-medium">${t.cost}/hr</span>
                       </div>
                     ))}
@@ -62,9 +62,7 @@ export default function VendorTable({
                   <span>—</span>
                 )}
               </td>
-              <td className="px-3 py-3 text-right">
-                {r.avgRating ?? '—'}
-              </td>
+              <td className="px-3 py-3 text-right">{r.avgRating ?? '—'}</td>
               <td className="px-3 py-3 text-right">
                 <Link
                   href={`/vendor/${r.id}`}
@@ -77,7 +75,7 @@ export default function VendorTable({
           ))}
           {!rows.length && (
             <tr>
-              <td colSpan={7} className="px-3 py-6 text-center text-gray-500">
+              <td colSpan={8} className="px-3 py-6 text-center text-gray-500">
                 No vendors match your filters.
               </td>
             </tr>
