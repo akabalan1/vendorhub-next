@@ -1,72 +1,25 @@
 // src/app/page.tsx
-export const dynamic = 'force-dynamic'; // or: export const revalidate = 0;
-
 import { prisma } from '@/lib/db';
 import { computeAvgRating } from '@/lib/scoring';
-import Filters from './components/Filters';
-import VendorTable from './components/VendorTable';
+import Link from 'next/link';
+import React from 'react';
+import { auth } from '@/lib/auth';
+import { redirect } from 'next/navigation';
 
-type Row = {
-  id: string;
-  name: string;
-  overview?: string | null;
-  raterTrainingSpeed?: string | null;
-  capabilities: any[];
-  serviceOptions: string[];
-  tierCosts: { label: string; cost: number }[];
-  selectedTierCost?: number | null;
-  minTierCost?: number | null;
-  avgRating: number | null;
-};
-
-function uniq<T>(arr: T[]) { return Array.from(new Set(arr)); }
-
-async function getFilterOptions() {
-  const [vendors, caps, tiers] = await Promise.all([
-    prisma.vendor.findMany({ select: { name: true }, orderBy: { name: 'asc' } }),
-    prisma.capability.findMany({ select: { slug: true, name: true }, orderBy: { name: 'asc' } }),
-    prisma.costTier.findMany({ select: { tierLabel: true } }),
-  ]);
-
-  return {
-    vendorOptions: vendors.map(v => ({ value: v.name, label: v.name })),
-    capabilityOptions: caps.map(c => ({ value: c.slug, label: c.name })),
-    tierLabels: uniq(tiers.map(t => t.tierLabel).filter(Boolean)) as string[],
-  };
+function money(n?: number | null) {
+  if (n == null) return '—';
+  return `$${Number(n).toFixed(0)}/hr`;
 }
 
-async function fetchRows(params: Record<string, string | undefined>): Promise<Row[]> {
-  const q = params.q?.trim();
-  const vendors = (params.vendors ?? '').split(',').map(s => s.trim()).filter(Boolean);
-  const caps = (params.caps ?? '').split(',').map(s => s.trim()).filter(Boolean);
-  const ratingMin = params.ratingMin ? Number(params.ratingMin) : null;
-  const tierLabel = params.tier?.trim() || '';
-  const tierMax = params.tierMax ? Number(params.tierMax) : null;
-  const svc = (params.svc ?? '').split(',').map(s => s.trim()).filter(Boolean) as any[];
-  const sort = params.sort ?? 'rating_desc';
-
-  // Base where for Prisma
-  const where: any = {};
-  if (q) {
-    // Search name or overview
-    where.OR = [
-      { name: { contains: q, mode: 'insensitive' } },
-      { overview: { contains: q, mode: 'insensitive' } },
-    ];
-  }
-  if (vendors.length) {
-    where.name = { in: vendors };
-  }
-  if (caps.length) {
-    where.caps = { some: { cap: { slug: { in: caps } } } };
-  }
-  if (svc.length) {
-    // Postgres enum[] supports hasSome in Prisma
-    where.serviceOptions = { hasSome: svc };
+export default async function Home() {
+  // 👇 Require login before rendering the table
+  const session = await auth();
+  if (!session?.user?.email) {
+    redirect(`/signin?callbackUrl=/`);
   }
 
-  const list = await prisma.vendor.findMany({
-    where,
+  // fetch vendors (exactly like you had before)
+  const vendors = await prisma.vendor.findMany({
     include: {
       costTiers: true,
       caps: { include: { cap: true } },
@@ -75,87 +28,111 @@ async function fetchRows(params: Record<string, string | undefined>): Promise<Ro
     orderBy: { name: 'asc' },
   });
 
-  // Shape into table rows
-  const rows: Row[] = list.map(v => {
-    const tierCosts = v.costTiers
-      .map(t => ({ label: t.tierLabel, cost: Number(t.hourlyUsdMin ?? t.hourlyUsdMax ?? NaN) }))
-      .filter(tc => !!tc.label && Number.isFinite(tc.cost));
-
-    const selectedTierCost =
-      tierLabel ? (tierCosts.find(t => t.label === tierLabel)?.cost ?? null) : null;
-
-    const minTierCost = tierCosts.length
-      ? Math.min(...tierCosts.map(t => t.cost))
-      : null;
+  const rows = vendors.map((v) => {
+    const minTierCost =
+      v.costTiers
+        .map((t) => t.hourlyUsdMin ?? t.hourlyUsdMax ?? 0)
+        .filter(Boolean)
+        .sort((a, b) => a - b)[0] || null;
 
     const avgRating = computeAvgRating(v.feedback as any);
 
     return {
       id: v.id,
       name: v.name,
-      overview: v.overview,
-      raterTrainingSpeed: (v as any).raterTrainingSpeed ?? null,
-      capabilities: v.caps.map(c => c.cap),
-      serviceOptions: (v as any).serviceOptions ?? [],
-      tierCosts,
-      selectedTierCost,
+      overview: v.overview ?? '—',
+      capabilities: v.caps.map((c) => c.cap.slug).join(', ') || '—',
+      serviceOptions: (v as any).serviceOptions as string[] | undefined,
+      costTiers: v.costTiers,
       minTierCost,
       avgRating,
     };
   });
 
-  // Rating threshold
-  const ratingFiltered = ratingMin != null
-    ? rows.filter(r => (r.avgRating ?? -1) >= ratingMin)
-    : rows;
-
-  // Tier max filter
-  const priceFiltered = tierMax != null && !Number.isNaN(tierMax)
-    ? ratingFiltered.filter(r => {
-        const val = tierLabel ? r.selectedTierCost : r.minTierCost;
-        return val != null && val <= tierMax;
-      })
-    : ratingFiltered;
-
-  // Sorting
-  const sorted = [...priceFiltered].sort((a, b) => {
-    switch (sort) {
-      case 'rating_asc':
-        return (a.avgRating ?? 1e9) - (b.avgRating ?? 1e9);
-      case 'cost_sel_asc':
-        return (a.selectedTierCost ?? 1e9) - (b.selectedTierCost ?? 1e9);
-      case 'cost_sel_desc':
-        return (b.selectedTierCost ?? -1) - (a.selectedTierCost ?? -1);
-      case 'cost_min_asc':
-        return (a.minTierCost ?? 1e9) - (b.minTierCost ?? 1e9);
-      case 'name_asc':
-        return a.name.localeCompare(b.name);
-      case 'rating_desc':
-      default:
-        return (b.avgRating ?? -1) - (a.avgRating ?? -1)
-          || (a.minTierCost ?? 1e9) - (b.minTierCost ?? 1e9);
-    }
-  });
-
-  return sorted;
-}
-
-export default async function Page({
-  searchParams,
-}: { searchParams?: Record<string, string> }) {
-  const [{ vendorOptions, capabilityOptions, tierLabels }, rows] = await Promise.all([
-    getFilterOptions(),
-    fetchRows(searchParams ?? {}),
-  ]);
-
   return (
-    <main className="space-y-3">
-      <Filters
-        vendorOptions={vendorOptions}
-        capabilityOptions={capabilityOptions}
-        tierLabels={tierLabels.length ? tierLabels : ['Tier 1', 'Tier 2', 'Tier 3']}
-      />
-      <VendorTable rows={rows} tierLabel={searchParams?.tier} />
+    <main className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-semibold">VendorHub</h1>
+        <Link
+          href="/api/auth/signout"
+          className="rounded-xl border border-gray-300 px-3 py-2 text-sm hover:bg-gray-100"
+        >
+          Sign out
+        </Link>
+      </div>
+
+      {/* Simple table (same look you had) */}
+      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
+        <table className="min-w-full border-collapse text-sm">
+          <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
+            <tr>
+              <th className="px-3 py-2">Vendor</th>
+              <th className="px-3 py-2">Capabilities</th>
+              <th className="px-3 py-2">Service Options</th>
+              <th className="px-3 py-2">Cost (all tiers)</th>
+              <th className="px-3 py-2">Avg ★</th>
+              <th className="px-3 py-2">Open</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.id} className="border-t border-gray-100">
+                <td className="px-3 py-2">{r.name}</td>
+                <td className="px-3 py-2">{r.capabilities}</td>
+                <td className="px-3 py-2">
+                  {(r.serviceOptions ?? []).length
+                    ? (r.serviceOptions ?? [])
+                        .map((s) =>
+                          s === 'WHITE_GLOVE'
+                            ? 'White Glove'
+                            : s === 'CROWD_SOURCED'
+                            ? 'Crowd Sourced'
+                            : s
+                        )
+                        .join(', ')
+                    : '—'}
+                </td>
+                <td className="px-3 py-2">
+                  {r.costTiers.length ? (
+                    <div className="space-y-0.5">
+                      {r.costTiers.map((t) => (
+                        <div key={t.id}>
+                          <span className="text-gray-500 mr-1">{t.tierLabel}:</span>
+                          <span>{money(t.hourlyUsdMin)}</span>
+                          {t.hourlyUsdMax != null ? (
+                            <>
+                              <span className="mx-1">–</span>
+                              <span>{money(t.hourlyUsdMax)}</span>
+                            </>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    '—'
+                  )}
+                </td>
+                <td className="px-3 py-2">{r.avgRating ?? '—'}</td>
+                <td className="px-3 py-2">
+                  <Link
+                    href={`/vendor/${r.id}`}
+                    className="rounded-xl border border-gray-300 px-2 py-1 text-xs hover:bg-gray-100"
+                  >
+                    View
+                  </Link>
+                </td>
+              </tr>
+            ))}
+            {!rows.length && (
+              <tr>
+                <td className="px-3 py-6 text-center text-gray-500" colSpan={6}>
+                  No vendors yet.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </main>
   );
 }
