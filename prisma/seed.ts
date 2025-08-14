@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, ServiceOption } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main(){
@@ -10,24 +10,42 @@ async function main(){
     prisma.capability.upsert({ where:{ slug:'reasoning' }, update:{}, create:{ slug:'reasoning', name:'Reasoning' }}),
   ]);
 
-  // Vendors
+  // Vendors (NEW: serviceOptions)
   const telus = await prisma.vendor.upsert({
     where: { name: 'Telus' },
-    update: {},
-    create: { name: 'Telus', industries: ['LLM SFT','RLHF','evals'], platforms: ['Meta'], overview: 'Recommended for simple workflows.' }
+    update: { serviceOptions: [ServiceOption.CROWD_SOURCED] },
+    create: {
+      name: 'Telus',
+      industries: ['LLM SFT','RLHF','evals'],
+      platforms: ['Meta'],
+      overview: 'Recommended for simple workflows.',
+      serviceOptions: [ServiceOption.CROWD_SOURCED]
+    }
   });
   const invisible = await prisma.vendor.upsert({
     where: { name: 'Invisible' },
-    update: {},
-    create: { name: 'Invisible', industries: ['Reasoning','Agentic'], platforms: ['Meta'], overview: 'Strong on reasoning projects.' }
+    update: { serviceOptions: [ServiceOption.WHITE_GLOVE, ServiceOption.FTE] },
+    create: {
+      name: 'Invisible',
+      industries: ['Reasoning','Agentic'],
+      platforms: ['Meta'],
+      overview: 'Strong on reasoning projects.',
+      serviceOptions: [ServiceOption.WHITE_GLOVE, ServiceOption.FTE]
+    }
   });
   const scale = await prisma.vendor.upsert({
     where: { name: 'Scale' },
-    update: {},
-    create: { name: 'Scale', industries: ['LLM SFT','Multilingual'], platforms: ['Meta'], overview: 'Strong multilingual coverage.' }
+    update: { serviceOptions: [ServiceOption.WHITE_GLOVE, ServiceOption.CROWD_SOURCED] },
+    create: {
+      name: 'Scale',
+      industries: ['LLM SFT','Multilingual'],
+      platforms: ['Meta'],
+      overview: 'Strong multilingual coverage.',
+      serviceOptions: [ServiceOption.WHITE_GLOVE, ServiceOption.CROWD_SOURCED]
+    }
   });
 
-  // Links
+  // Link caps
   const capIdx: Record<string,string> = {};
   for (const c of await prisma.capability.findMany()) capIdx[c.slug]=c.id;
   await prisma.vendorCapability.createMany({ data: [
