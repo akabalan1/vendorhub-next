@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/db';
 import { computeAvgRating } from '@/lib/scoring';
-import { Filters } from './components/Filters';
+import Filters from './components/Filters';
 import { VendorCard } from './components/VendorCard';
 
 async function fetchVendors({ q, cap, maxCost }: { q?: string, cap?: string, maxCost?: string }){
