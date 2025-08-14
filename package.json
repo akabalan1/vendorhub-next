@@ -3,12 +3,13 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "postinstall": "prisma generate && prisma db push",
-    "seed": "ts-node --transpile-only prisma/seed.ts"
-  },
+  "dev": "next dev",
+  "build": "next build",
+  "start": "next start",
+  "postinstall": "prisma generate",
+  "seed": "ts-node --transpile-only prisma/seed.ts"
+}
+,
   "dependencies": {
     "@prisma/client": "^5.16.1",
     "next": "14.2.5",
