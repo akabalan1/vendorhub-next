@@ -1,9 +1,7 @@
-// middleware.ts  (TEMP to verify it runs)
-import { NextResponse } from "next/server";
+// middleware.ts  (project root, same level as package.json)
+export { auth as middleware } from "@/lib/auth";
 
-export function middleware() {
-  console.log("MIDDLEWARE RAN ✅");
-  return NextResponse.next();
-}
-
-export const config = { matcher: ["/:path*"] };
+// Run on basically everything except static/image
+export const config = {
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+};
