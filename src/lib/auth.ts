@@ -23,12 +23,27 @@ const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || "")
   .map((e) => e.trim().toLowerCase())
   .filter(Boolean);
 
-const authConfig = {
+export const {
+  handlers,
+  auth,
+  signIn,
+  signOut,
+} = NextAuth({
   adapter: PrismaAdapter(prisma),
-  session: { strategy: "database" as const },
+  session: { strategy: "database" }, // keep "database" since you have Session model
+  trustHost: true,
+  secret: process.env.NEXTAUTH_SECRET,
+
+  // 👇 Tell NextAuth where your sign-in page is.
+  // If your page is at src/app/(auth)/signin/page.tsx, the route is "/signin".
+  // If you kept it under /auth/signin, change this to "/auth/signin".
+  pages: {
+    signIn: "/signin",
+  },
+
   providers: [
     EmailProvider({
-      // ---- Dummy SMTP to satisfy provider runtime check (won't be used)
+      // Dummy SMTP to satisfy runtime check; we actually send via Resend below.
       server: {
         host: "localhost",
         port: 587,
@@ -36,7 +51,7 @@ const authConfig = {
       },
       from: process.env.EMAIL_FROM!, // e.g. "VendorHub <auth@yourdomain.com>"
 
-      // ---- We actually send via Resend here
+      // Send magic link via Resend
       async sendVerificationRequest({ identifier, url }) {
         const { host } = new URL(url);
         const result = await resend.emails.send({
@@ -56,8 +71,9 @@ const authConfig = {
       },
     }),
   ],
+
   callbacks: {
-    // Only allow @meta.com emails
+    // Only allow @meta.com emails to complete sign-in
     async signIn({
       user,
       email,
@@ -67,6 +83,12 @@ const authConfig = {
     }) {
       const addr = (email?.email ?? user?.email ?? "").toLowerCase();
       return addr.endsWith("@meta.com");
+    },
+
+    // 👇 This powers the middleware gate.
+    // Return true only when a session user exists.
+    authorized({ auth }) {
+      return !!auth?.user?.email;
     },
 
     // Add id and isAdmin to the session object
@@ -85,6 +107,7 @@ const authConfig = {
       return session;
     },
   },
+
   events: {
     // Auto-mark user as admin if their email is in ADMIN_EMAILS
     async createUser({ user }: { user: { id: string; email?: string | null } }) {
@@ -97,7 +120,4 @@ const authConfig = {
       }
     },
   },
-  trustHost: true,
-};
-
-export const { handlers, auth, signIn, signOut } = NextAuth(authConfig as any);
+} as any);
