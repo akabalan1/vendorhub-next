@@ -1,3 +1,6 @@
+// src/app/page.tsx
+export const dynamic = 'force-dynamic'; // or: export const revalidate = 0;
+
 import { prisma } from '@/lib/db';
 import { computeAvgRating } from '@/lib/scoring';
 import Filters from './components/Filters';
