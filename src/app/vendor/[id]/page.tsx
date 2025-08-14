@@ -1,7 +1,9 @@
+// src/app/vendor/[id]/page.tsx
 import { prisma } from '@/lib/db';
 import { computeAvgRating } from '@/lib/scoring';
 import Link from 'next/link';
 import React from 'react';
+import AddFeedback from './AddFeedback.client';
 
 function fmtSvc(arr?: string[] | null) {
   if (!Array.isArray(arr) || !arr.length) return '—';
@@ -166,7 +168,7 @@ export default async function VendorPage({ params }: { params: { id: string } })
       <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
         <div className="mb-2 flex items-center justify-between">
           <h3 className="text-base font-semibold">Feedback ({v.feedback.length})</h3>
-          {/* You can add a client-side form here later */}
+          <AddFeedback vendorId={v.id} />
         </div>
 
         {v.feedback.length ? (
@@ -198,12 +200,7 @@ export default async function VendorPage({ params }: { params: { id: string } })
                     </div>
                   ) : null}
                   {f.link ? (
-                    <a
-                      className="underline"
-                      href={f.link}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
+                    <a className="underline" href={f.link} target="_blank" rel="noreferrer">
                       evidence
                     </a>
                   ) : null}
