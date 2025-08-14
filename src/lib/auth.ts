@@ -29,6 +29,7 @@ const authConfig = {
   session: { strategy: "database" as const },
   providers: [
     EmailProvider({
+      from: process.env.EMAIL_FROM!, // <-- REQUIRED by Auth.js Email provider
       maxAge: 60 * 60 * 24, // 24 hours
       async sendVerificationRequest({ identifier, url }) {
         const { host } = new URL(url);
