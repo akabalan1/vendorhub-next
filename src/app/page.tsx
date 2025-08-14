@@ -32,7 +32,7 @@ export default async function Page({ searchParams }: { searchParams?: Record<str
       <Filters onChange={(f)=>{ const url = new URL(window.location.href); Object.entries(f).forEach(([k,v])=>{ if(v) url.searchParams.set(k,v); else url.searchParams.delete(k); }); window.history.replaceState({},'',url.toString()); }} />
 
       {/* Grid */}
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+     <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         {data.map((v)=> <VendorCard key={v.id} v={v} />)}
         {!data.length && (
           <div className="rounded-2xl border border-gray-200 bg-white p-6 text-center text-gray-500">No vendors match your filters.</div>
