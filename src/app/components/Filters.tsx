@@ -2,54 +2,49 @@
 import React from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import MultiSelect from './MultiSelect';
+import RatingFilter from './RatingFilter';
 
-function parseCSV(param: string | null) {
-  return (param ?? '')
-    .split(',')
-    .map(s => s.trim())
-    .filter(Boolean);
+function parseCSV(v: string | null) {
+  return (v ?? '').split(',').map(s => s.trim()).filter(Boolean);
 }
 
 export default function Filters({
   vendorOptions,
   capabilityOptions,
+  tierLabels = ['Tier 1','Tier 2','Tier 3'],
 }: {
   vendorOptions: { value: string; label: string }[];
   capabilityOptions: { value: string; label: string }[];
+  tierLabels?: string[];
 }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  // hydrate from URL
+  // URL state
+  const [q, setQ] = React.useState(searchParams.get('q') ?? '');
   const [vendors, setVendors] = React.useState<string[]>(parseCSV(searchParams.get('vendors')));
   const [caps, setCaps] = React.useState<string[]>(parseCSV(searchParams.get('caps')));
-  const [ratings, setRatings] = React.useState<string[]>(parseCSV(searchParams.get('ratings'))); // e.g. ["3","4","5"]
-  const [tiers, setTiers] = React.useState<string[]>(parseCSV(searchParams.get('tiers')));       // e.g. ["<=40","<=50"]
+  const [ratingMin, setRatingMin] = React.useState<string | null>(searchParams.get('ratingMin'));
+  const [tierLabel, setTierLabel] = React.useState(searchParams.get('tier') ?? '');
+  const [tierMax, setTierMax] = React.useState(searchParams.get('tierMax') ?? '');
   const [sort, setSort] = React.useState(searchParams.get('sort') ?? 'rating_desc');
-  const [q, setQ] = React.useState(searchParams.get('q') ?? '');
 
-  // push to URL
   React.useEffect(() => {
-    const params = new URLSearchParams(searchParams.toString());
-    const set = (k: string, arr: string[]) => (arr.length ? params.set(k, arr.join(',')) : params.delete(k));
-    q ? params.set('q', q) : params.delete('q');
-    set('vendors', vendors);
-    set('caps', caps);
-    set('ratings', ratings);
-    set('tiers', tiers);
-    sort ? params.set('sort', sort) : params.delete('sort');
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    const p = new URLSearchParams(searchParams.toString());
+    const setList = (k: string, arr: string[]) => arr.length ? p.set(k, arr.join(',')) : p.delete(k);
+    q ? p.set('q', q) : p.delete('q');
+    setList('vendors', vendors);
+    setList('caps', caps);
+    ratingMin ? p.set('ratingMin', ratingMin) : p.delete('ratingMin');
+    tierLabel ? p.set('tier', tierLabel) : p.delete('tier');
+    tierMax ? p.set('tierMax', tierMax) : p.delete('tierMax');
+    sort ? p.set('sort', sort) : p.delete('sort');
+    router.replace(`${pathname}?${p.toString()}`, { scroll: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, vendors, caps, ratings, tiers, sort]);
+  }, [q, vendors, caps, ratingMin, tierLabel, tierMax, sort]);
 
-  const ratingOpts = [5, 4, 3].map(n => ({ value: String(n), label: `Exactly ${n}★` }));
-  const tierOpts = [
-    { value: '<=35', label: '≤ $35/hr' },
-    { value: '<=50', label: '≤ $50/hr' },
-    { value: '<=75', label: '≤ $75/hr' },
-    { value: '<=100', label: '≤ $100/hr' },
-  ];
+  const tierOptions = tierLabels.map(t => ({ value: t, label: t }));
 
   return (
     <div className="mb-3 grid grid-cols-1 gap-2 md:grid-cols-12">
@@ -67,9 +62,30 @@ export default function Filters({
       <div className="md:col-span-3">
         <MultiSelect label="Capabilities" options={capabilityOptions} selected={caps} onChange={setCaps} />
       </div>
-      <div className="md:col-span-2 flex gap-2">
-        <MultiSelect label="Rating" options={ratingOpts} selected={ratings} onChange={setRatings} />
-        <MultiSelect label="Tier cost" options={tierOpts} selected={tiers} onChange={setTiers} />
+
+      {/* Rating & Tier */}
+      <div className="md:col-span-2 flex items-center gap-2">
+        <RatingFilter value={ratingMin} onChange={setRatingMin} />
+      </div>
+
+      <div className="md:col-span-3 flex items-center gap-2">
+        <div className="flex-1 rounded-xl border border-gray-300 bg-white px-3 py-2">
+          <div className="text-xs text-gray-500">Tier</div>
+          <select
+            className="w-full bg-transparent text-sm outline-none"
+            value={tierLabel}
+            onChange={e => setTierLabel(e.target.value)}
+          >
+            <option value="">Any tier</option>
+            {tierOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </div>
+        <input
+          className="w-28 rounded-xl border border-gray-300 px-3 py-2 text-sm"
+          placeholder="Max $/hr"
+          value={tierMax}
+          onChange={e => setTierMax(e.target.value)}
+        />
       </div>
 
       {/* Sort */}
@@ -83,8 +99,9 @@ export default function Filters({
           >
             <option value="rating_desc">Rating (high → low)</option>
             <option value="rating_asc">Rating (low → high)</option>
-            <option value="cost_asc">Cost (low → high)</option>
-            <option value="cost_desc">Cost (high → low)</option>
+            <option value="cost_sel_asc">Selected tier cost (low → high)</option>
+            <option value="cost_sel_desc">Selected tier cost (high → low)</option>
+            <option value="cost_min_asc">Min cost (low → high)</option>
             <option value="name_asc">Name (A–Z)</option>
           </select>
         </div>
