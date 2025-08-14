@@ -1,41 +1,100 @@
-import Link from 'next/link';
+import { useState } from "react";
 
-export default function VendorTable({ rows, tierLabel }: { rows: any[]; tierLabel?: string }) {
-  const costHeader = tierLabel ? `${tierLabel} cost` : 'Min cost';
+export default function VendorsTable({ vendors }) {
+  const [ratingFilter, setRatingFilter] = useState(null);
+  const [tierFilter, setTierFilter] = useState(null);
+  const [sortBy, setSortBy] = useState(null);
+
+  // Filtering
+  const filteredVendors = vendors.filter(v => {
+    const meetsRating = ratingFilter ? v.avgRating >= ratingFilter : true;
+    const meetsTier = tierFilter
+      ? v.tiers?.some(t => t.tier === tierFilter)
+      : true;
+    return meetsRating && meetsTier;
+  });
+
+  // Sorting
+  const sortedVendors = [...filteredVendors].sort((a, b) => {
+    if (sortBy === "rating") return b.avgRating - a.avgRating;
+    if (sortBy === "tierCost") {
+      const getTierCost = v =>
+        v.tiers?.find(t => t.tier === tierFilter)?.cost || Infinity;
+      return getTierCost(a) - getTierCost(b);
+    }
+    return 0;
+  });
+
   return (
-    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
-      <table className="min-w-full border-collapse text-sm">
-        <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
-          <tr>
-            <th className="px-3 py-2">Vendor</th>
-            <th className="px-3 py-2">Industries</th>
-            <th className="px-3 py-2">Capabilities</th>
-            <th className="px-3 py-2">Platforms</th>
-            <th className="px-3 py-2 text-right">{costHeader}</th>
-            <th className="px-3 py-2 text-right">Avg ★</th>
-            <th className="px-3 py-2 text-right">Open</th>
+    <div className="p-4">
+      {/* Filters */}
+      <div className="flex gap-4 mb-4">
+        {/* Rating filter dropdown */}
+        <select
+          onChange={e => setRatingFilter(parseFloat(e.target.value) || null)}
+          className="border rounded p-1"
+        >
+          <option value="">Any rating</option>
+          {[2, 2.5, 3, 3.5, 4, 4.5].map(r => (
+            <option key={r} value={r}>
+              {r} ★
+            </option>
+          ))}
+        </select>
+
+        {/* Tier filter dropdown */}
+        <select
+          onChange={e => setTierFilter(e.target.value || null)}
+          className="border rounded p-1"
+        >
+          <option value="">Any tier</option>
+          <option value="Tier 1">Tier 1</option>
+          <option value="Tier 2">Tier 2</option>
+          <option value="Tier 3">Tier 3</option>
+        </select>
+
+        {/* Sort dropdown */}
+        <select
+          onChange={e => setSortBy(e.target.value || null)}
+          className="border rounded p-1"
+        >
+          <option value="">No sort</option>
+          <option value="rating">Sort by rating</option>
+          <option value="tierCost">Sort by tier cost</option>
+        </select>
+      </div>
+
+      {/* Table */}
+      <table className="w-full border">
+        <thead>
+          <tr className="bg-gray-100">
+            <th className="text-left p-2">Vendor</th>
+            <th className="text-left p-2">Capabilities</th>
+            <th className="text-left p-2">Platforms</th>
+            <th className="text-left p-2">Tier Cost</th>
+            <th className="text-left p-2">Avg ★</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
-          {rows.map(r => (
-            <tr key={r.id} className="border-t border-gray-100 hover:bg-gray-50/60">
-              <td className="px-3 py-3 font-medium"><Link href={`/vendor/${r.id}`}>{r.name}</Link></td>
-              <td className="px-3 py-3 text-gray-700">{r.industries?.join(', ') || '—'}</td>
-              <td className="px-3 py-3 text-gray-700">{r.capabilities?.map((c: any) => c.slug).join(', ') || '—'}</td>
-              <td className="px-3 py-3 text-gray-700">{r.platforms?.join(', ') || '—'}</td>
-              <td className="px-3 py-3 text-right">
-                {r.selectedTierCost != null ? `$${r.selectedTierCost}/hr` :
-                 r.minTierCost != null ? `$${r.minTierCost}/hr` : '—'}
+          {sortedVendors.map(v => (
+            <tr key={v.id} className="border-t">
+              <td className="p-2 font-semibold">{v.name}</td>
+              <td className="p-2">{v.capabilities.map(c => c.slug).join(", ")}</td>
+              <td className="p-2">{v.platforms.join(", ")}</td>
+              <td className="p-2">
+                {v.tiers
+                  ? `$${v.tiers.find(t => t.tier === tierFilter)?.cost || v.minTierCost}/hr`
+                  : `$${v.minTierCost}/hr`}
               </td>
-              <td className="px-3 py-3 text-right">{r.avgRating ?? '—'}</td>
-              <td className="px-3 py-3 text-right">
-                <Link href={`/vendor/${r.id}`} className="rounded-lg border border-gray-300 px-2 py-1 hover:bg-gray-100">View</Link>
+              <td className="p-2">{v.avgRating}</td>
+              <td className="p-2">
+                <button className="bg-blue-500 text-white px-2 py-1 rounded">
+                  View
+                </button>
               </td>
             </tr>
           ))}
-          {!rows.length && (
-            <tr><td colSpan={7} className="px-3 py-6 text-center text-gray-500">No vendors match your filters.</td></tr>
-          )}
         </tbody>
       </table>
     </div>
