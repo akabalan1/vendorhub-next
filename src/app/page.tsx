@@ -4,12 +4,8 @@ import Filters from './components/Filters';
 import VendorTable from './components/VendorTable';
 
 type SP = Record<string, string | string[] | undefined>;
-
 const norm = (s: string) => s.toLowerCase().replace(/\s+/g, '');
-
-function csvToArray(v?: string) {
-  return (v ?? '').split(',').map(s => s.trim()).filter(Boolean);
-}
+const csv = (v?: string) => (v ?? '').split(',').map(s => s.trim()).filter(Boolean);
 
 async function fetchOptions() {
   const [vendors, caps] = await Promise.all([
@@ -24,16 +20,18 @@ async function fetchOptions() {
 
 async function fetchVendors(sp: SP) {
   const q = (sp.q as string) || '';
-  const vendorsSel = csvToArray(sp.vendors as string);
-  const capsSel = csvToArray(sp.caps as string);
+  const vendorsSel = csv(sp.vendors as string);
+  const capsSel = csv(sp.caps as string);
   const ratingMin = Number(sp.ratingMin ?? 0);
   const tierLabel = (sp.tier as string) || '';
   const tierMax = Number(sp.tierMax ?? 0);
+  const svcSel = csv(sp.svc as string); // NEW: ['WHITE_GLOVE','FTE',...]
   const sort = (sp.sort as string) || 'rating_desc';
 
   const where: any = {};
   if (q) where.name = { contains: q, mode: 'insensitive' };
   if (capsSel.length) where.caps = { some: { cap: { slug: { in: capsSel } } } };
+  if (svcSel.length) where.serviceOptions = { hasEvery: svcSel }; // require ALL selected options
 
   const vendors = await prisma.vendor.findMany({
     where,
@@ -42,12 +40,8 @@ async function fetchVendors(sp: SP) {
   });
 
   let rows = vendors.map(v => {
-    // Build tierCosts array
     const tierCosts = v.costTiers
-      .map(t => ({
-        label: t.tierLabel,
-        cost: t.hourlyUsdMin ?? t.hourlyUsdMax ?? null,
-      }))
+      .map(t => ({ label: t.tierLabel, cost: t.hourlyUsdMin ?? t.hourlyUsdMax ?? null }))
       .filter(t => t.label && t.cost != null)
       .sort((a, b) => {
         const na = Number(String(a.label).match(/\d+/)?.[0] ?? '1');
@@ -70,7 +64,8 @@ async function fetchVendors(sp: SP) {
       name: v.name,
       platforms: v.platforms,
       capabilities: v.caps.map(c => c.cap),
-      tierCosts,          // [{label, cost}]
+      serviceOptions: v.serviceOptions, // NEW
+      tierCosts,
       minTierCost,
       selectedTierCost,
       avgRating,
@@ -78,7 +73,6 @@ async function fetchVendors(sp: SP) {
   });
 
   if (vendorsSel.length) rows = rows.filter(r => vendorsSel.includes(r.name));
-
   if (ratingMin > 0) rows = rows.filter(r => (r.avgRating ?? 0) >= ratingMin - 1e-9);
 
   if (tierLabel) {
@@ -88,10 +82,10 @@ async function fetchVendors(sp: SP) {
 
   const sorters: Record<string, (a: any, b: any) => number> = {
     rating_desc: (a, b) => (b.avgRating ?? -1) - (a.avgRating ?? -1),
-    rating_asc: (a, b) => (a.avgRating ?? 1e9) - (b.avgRating ?? 1e9),
-    cost_sel_asc: (a, b) => (a.selectedTierCost ?? 1e9) - (b.selectedTierCost ?? 1e9),
+    rating_asc:  (a, b) => (a.avgRating ?? 1e9) - (b.avgRating ?? 1e9),
+    cost_sel_asc:  (a, b) => (a.selectedTierCost ?? 1e9) - (b.selectedTierCost ?? 1e9),
     cost_sel_desc: (a, b) => (b.selectedTierCost ?? -1) - (a.selectedTierCost ?? -1),
-    cost_min_asc: (a, b) => (a.minTierCost ?? 1e9) - (b.minTierCost ?? 1e9),
+    cost_min_asc:  (a, b) => (a.minTierCost ?? 1e9) - (b.minTierCost ?? 1e9),
     name_asc: (a, b) => a.name.localeCompare(b.name),
   };
   rows.sort(sorters[sort] ?? sorters.rating_desc);
