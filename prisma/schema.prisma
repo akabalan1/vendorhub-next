@@ -23,6 +23,11 @@ enum ServiceOption {
   FTE
 }
 
+enum ChallengeType {
+  AUTH
+  REG
+}
+
 // ----- Core models -----
 
 model Vendor {
@@ -159,5 +164,16 @@ model Passkey {
   transports   String[] @db.Text
 
   @@index([email])
+}
+
+model WebAuthnChallenge {
+  id        String        @id @default(cuid())
+  email     String
+  type      ChallengeType
+  challenge String
+  expiresAt DateTime
+
+  @@unique([email, type])
+  @@index([expiresAt])
 }
 
