@@ -12,6 +12,7 @@
   "dependencies": {
     "@prisma/client": "^5.16.1",
     "@simplewebauthn/browser": "^13.1.2",
+    "@simplewebauthn/server": "^13.1.2",
     "clsx": "^2.1.1",
     "google-auth-library": "^9.14.1",
     "jose": "^5.9.3",

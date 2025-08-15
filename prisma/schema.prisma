@@ -149,3 +149,15 @@ model VerificationToken {
 
   @@unique([identifier, token])
 }
+
+model Passkey {
+  id           String   @id @default(cuid())
+  email        String
+  credentialId String   @unique
+  publicKey    String
+  counter      Int
+  transports   String[] @db.Text
+
+  @@index([email])
+}
+

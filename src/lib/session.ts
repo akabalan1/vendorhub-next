@@ -17,6 +17,8 @@ export type Session = {
   email: string;
   name?: string;
   isAdmin?: boolean;
+  preAuth?: boolean;
+  stage?: "pre" | "full";
 };
 
 export async function signSession(
