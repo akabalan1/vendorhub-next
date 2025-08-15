@@ -13,11 +13,12 @@ function secretKey() {
 }
 
 export type Session = {
-  sub: string;       // Google user id
+  sub: string;       // user id
   email: string;
   name?: string;
   isAdmin?: boolean;
   preAuth?: boolean;
+  stage?: "pre" | "full";
 };
 
 export async function signSession(
@@ -59,3 +60,7 @@ export const sessionCookie = {
     path: "/",
   },
 };
+
+export function clearSession() {
+  cookies().set(sessionCookie.name, "", { ...sessionCookie.options, maxAge: 0 });
+}
