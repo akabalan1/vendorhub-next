@@ -3,8 +3,6 @@ import { prisma } from '@/lib/db';
 import { computeAvgRating } from '@/lib/scoring';
 import Link from 'next/link';
 import React from 'react';
-import { auth } from '@/lib/auth';
-import { redirect } from 'next/navigation';
 
 function money(n?: number | null) {
   if (n == null) return '—';
@@ -12,12 +10,6 @@ function money(n?: number | null) {
 }
 
 export default async function Home() {
-  // 👇 Require login before rendering the table
-  const session = await auth();
-  if (!session?.user?.email) {
-    redirect(`/signin?callbackUrl=/`);
-  }
-
   // fetch vendors (exactly like you had before)
   const vendors = await prisma.vendor.findMany({
     include: {
@@ -51,15 +43,7 @@ export default async function Home() {
 
   return (
     <main className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">VendorHub</h1>
-        <Link
-          href="/api/auth/signout"
-          className="rounded-xl border border-gray-300 px-3 py-2 text-sm hover:bg-gray-100"
-        >
-          Sign out
-        </Link>
-      </div>
+      <h1 className="text-xl font-semibold">VendorHub</h1>
 
       {/* Simple table (same look you had) */}
       <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white">

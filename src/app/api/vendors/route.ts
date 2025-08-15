@@ -6,15 +6,8 @@ export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { auth } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
-  // 🔐 Require an authenticated session for listing vendors
-  const session = await auth();
-  if (!session?.user?.email) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-  }
-
   const { searchParams } = new URL(req.url);
   const q = searchParams.get('query') ?? '';
   const cap = searchParams.get('cap') ?? '';
@@ -104,13 +97,6 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  // 🔐 Admin-only create
-  const session = await auth();
-  const isAdmin = !!(session?.user && (session.user as any).isAdmin);
-  if (!isAdmin) {
-    return NextResponse.json({ error: 'admin only' }, { status: 403 });
-  }
-
   const body = await req.json();
   const {
     name,
