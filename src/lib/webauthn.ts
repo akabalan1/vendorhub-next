@@ -5,45 +5,26 @@ import {
   verifyRegistrationResponse,
   type AuthenticatorTransportFuture,
 } from "@simplewebauthn/server";
+import { randomBytes } from "crypto";
 import { prisma } from "@/lib/db";
 import { signSession } from "@/lib/session";
 import { ChallengeType } from "@prisma/client";
 
 const CHALLENGE_TTL_MS = 5 * 60 * 1000;
+const challenges = new Map<string, string>();
 
 export async function startAuth(email: string) {
-  const challenge = randomBytes(32).toString("base64url");
-  const expiresAt = new Date(Date.now() + CHALLENGE_TTL_MS);
-  await prisma.webAuthnChallenge.upsert({
-    where: { email_type: { email, type: ChallengeType.AUTH } },
-    update: { challenge, expiresAt },
-    create: { email, type: ChallengeType.AUTH, challenge, expiresAt },
-  });
-  await prisma.webAuthnChallenge.deleteMany({ where: { expiresAt: { lt: new Date() } } });
-  return { challenge };
-}
-
-export async function finishAuth(email: string, assertion: any) {
-  const record = await prisma.webAuthnChallenge.findUnique({
-    where: { email_type: { email, type: ChallengeType.AUTH } },
-  });
-  if (!record || record.challenge !== assertion?.challenge || record.expiresAt < new Date()) {
-    if (record) {
-      await prisma.webAuthnChallenge.delete({ where: { email_type: { email, type: ChallengeType.AUTH } } });
-    }
-    throw new Error("Invalid assertion");
-  }
-  await prisma.webAuthnChallenge.delete({ where: { email_type: { email, type: ChallengeType.AUTH } } });
-  const token = await signSession({ sub: email, email });
   const passkeys = await prisma.passkey.findMany({ where: { email } });
+  const challenge = randomBytes(32).toString("base64url");
   const options = await generateAuthenticationOptions({
     rpID: process.env.WEBAUTHN_RP_ID || "localhost",
     allowCredentials: passkeys.map((p) => ({
       id: p.credentialId,
       transports: p.transports as AuthenticatorTransportFuture[],
     })),
+    challenge,
   });
-  challenges.set(email, options.challenge);
+  challenges.set(email, challenge);
   return options;
 }
 
