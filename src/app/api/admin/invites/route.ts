@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifySession } from "@/lib/session";
+import { getSession } from "@/lib/session";
 import { signInvite } from "@/lib/invite";
 
 export async function POST(req: NextRequest) {
-  const session = await verifySession();
+  const session = await getSession();
   if (!session?.isAdmin) {
     return NextResponse.json({ error: "admin only" }, { status: 403 });
   }
