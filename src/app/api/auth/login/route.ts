@@ -3,7 +3,7 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import { OAuth2Client } from "google-auth-library";
-import { signSession, sessionCookie } from "@/lib/session";
+import { setSessionCookie } from "@/lib/session";
 
 const clientId =
   process.env.GOOGLE_CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
@@ -35,18 +35,9 @@ export async function POST(req: NextRequest) {
     }
 
     const isAdmin = ADMIN_EMAILS.includes(email);
-    const token = await signSession({
-      sub: p.sub!,
-      email,
-      name: p.name,
-      isAdmin,
-    });
 
     const res = NextResponse.json({ ok: true });
-    res.cookies.set(sessionCookie.name, token, {
-      ...sessionCookie.options,
-      maxAge: 60 * 60 * 24 * 30, // 30 days
-    });
+    await setSessionCookie(res, { email, isAdmin, stage: "full" });
     return res;
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || "login failed" }, { status: 500 });

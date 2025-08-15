@@ -1,6 +1,6 @@
 // middleware.ts
 import { NextRequest, NextResponse } from "next/server";
-import { verifyToken } from "@/lib/session";
+import { getSession, setSessionCookie } from "@/lib/session";
 
 const PUBLIC_PREFIXES = [
   "/signin",
@@ -20,8 +20,7 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  const token = req.cookies.get("vh_session")?.value;
-  const session = await verifyToken(token);
+  const session = await getSession(req);
 
   if (process.env.AUTH_DEBUG === "1") {
     console.log("[mw]", pathname, "user:", session?.email || null);
@@ -32,6 +31,17 @@ export async function middleware(req: NextRequest) {
     url.pathname = "/signin";
     url.searchParams.set("callbackUrl", pathname + search);
     return NextResponse.redirect(url);
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  if (session.exp - now < 60 * 60 * 24 * 7) {
+    const res = NextResponse.next();
+    await setSessionCookie(res, {
+      email: session.email,
+      isAdmin: session.isAdmin,
+      stage: session.stage,
+    });
+    return res;
   }
 
   return NextResponse.next();
