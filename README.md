@@ -3,25 +3,22 @@
 ## Local Dev (optional)
 ```bash
 npm i
-cp .env.example .env # set DATABASE_URL, AUTH_SECRET, NEXT_PUBLIC_GOOGLE_CLIENT_ID, ADMIN_EMAILS
+cp .env.example .env # set DATABASE_URL, APP_SECRET, RP_NAME, RP_ID, ADMIN_EMAILS
 npx prisma migrate dev
 npm run dev
 ```
 
 ## Authentication
 
-This project uses [Google Identity Services](https://developers.google.com/identity) for authentication.
-
-1. Create a Google Cloud project and enable Google Identity Services.
-2. Configure an OAuth 2.0 Client ID for a web application.
-3. Add `http://localhost:3000` to the authorized JavaScript origins for local development.
-4. Set the client ID as `NEXT_PUBLIC_GOOGLE_CLIENT_ID` (or `GOOGLE_CLIENT_ID`) in your environment.
+This project uses passkeys via [SimpleWebAuthn](https://github.com/MasterKale/SimpleWebAuthn).
+Registration is invite-only. Generate an invite for a user's email and share the sign-in link so they can register a passkey.
 
 ## Environment
 
 - `DATABASE_URL` – connection string for Postgres
-- `AUTH_SECRET` – secret used to sign authentication tokens
-- `GOOGLE_CLIENT_ID` or `NEXT_PUBLIC_GOOGLE_CLIENT_ID` – client ID from Google Identity Services
+- `APP_SECRET` – secret used to sign authentication tokens
+- `RP_NAME` – WebAuthn Relying Party name shown to users
+- `RP_ID` – WebAuthn Relying Party ID (typically your domain)
 - `ADMIN_EMAILS` – comma‑separated emails with admin access. During sign‑in, if the user's email (case‑insensitive) matches one of these, the JWT will include `isAdmin: true`.
 
 ## Deploy (Vercel + Neon, recommended)
