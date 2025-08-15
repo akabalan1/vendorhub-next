@@ -3,6 +3,7 @@
 ## Local Dev (optional)
 ```bash
 npm i
+
 cp .env.example .env # set DATABASE_URL and AUTH_SECRET
 npx prisma migrate dev
 npm run dev
@@ -27,6 +28,12 @@ If fewer than 7 days remain, middleware issues a fresh cookie, enabling rolling 
 
 - `DATABASE_URL` – connection string for Postgres
 - `AUTH_SECRET` – secret used to sign authentication tokens
+
+- `APP_SECRET` – secret used by the application (e.g., for invite tokens)
+- `RP_NAME` – WebAuthn relying party name
+- `RP_ID` – WebAuthn relying party ID
+- `APP_URL` – base URL of the application (used in invitation links)
+- `ADMIN_EMAILS` – comma‑separated emails with admin access. During sign‑in, if the user's email (case‑insensitive) matches one of these, the JWT will include `isAdmin: true`.
 
 ## Deploy (Vercel + Neon, recommended)
 
