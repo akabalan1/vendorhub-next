@@ -14,6 +14,8 @@ npm run dev
 
 ### Admin invites
 Existing admins create one‑time invites for new users.
+Invites are signed with `AUTH_SECRET`, so ensure this secret is set.
+Admin rights live on the user record (`isAdmin`); there's no `ADMIN_EMAILS` env.
 
 ### Redeem → preAuth → passkey setup → full session
 1. A user redeems an invite at `/invite` which establishes a short‑lived `preAuth` session.
@@ -27,13 +29,12 @@ If fewer than 7 days remain, middleware issues a fresh cookie, enabling rolling 
 ## Environment
 
 - `DATABASE_URL` – connection string for Postgres
-- `AUTH_SECRET` – secret used to sign authentication tokens
-
-- `APP_SECRET` – secret used by the application (e.g., for invite tokens)
+- `AUTH_SECRET` – secret used to sign authentication and invite tokens
 - `RP_NAME` – WebAuthn relying party name
 - `RP_ID` – WebAuthn relying party ID
 - `APP_URL` – base URL of the application (used in invitation links)
-- `ADMIN_EMAILS` – comma‑separated emails with admin access. During sign‑in, if the user's email (case‑insensitive) matches one of these, the JWT will include `isAdmin: true`.
+
+Admin privileges are determined by the `isAdmin` flag in the database; no extra secret is needed.
 
 ## Deploy (Vercel + Neon, recommended)
 
