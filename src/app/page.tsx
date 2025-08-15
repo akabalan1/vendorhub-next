@@ -3,7 +3,7 @@ import { prisma } from '@/lib/db';
 import { computeAvgRating } from '@/lib/scoring';
 import Link from 'next/link';
 import React from 'react';
-import { auth } from '@/lib/auth';
+import { getSession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 
 function money(n?: number | null) {
@@ -13,8 +13,8 @@ function money(n?: number | null) {
 
 export default async function Home() {
   // 👇 Require login before rendering the table
-  const session = await auth();
-  if (!session?.user?.email) {
+  const session = await getSession();
+  if (!session?.email) {
     redirect(`/signin?callbackUrl=/`);
   }
 
@@ -54,7 +54,7 @@ export default async function Home() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">VendorHub</h1>
         <Link
-          href="/api/auth/signout"
+          href="/api/signout"
           className="rounded-xl border border-gray-300 px-3 py-2 text-sm hover:bg-gray-100"
         >
           Sign out
