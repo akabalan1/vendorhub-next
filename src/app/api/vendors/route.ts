@@ -1,28 +1,21 @@
 // src/app/api/vendors/route.ts
-
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const runtime = 'nodejs';
+export const runtime = "nodejs";
 
-import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
-import { getSession } from '@/lib/auth';
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
+import { getSessionFromRequest } from "@/lib/session";
 
 export async function GET(req: NextRequest) {
-  // 🔐 Require an authenticated session for listing vendors
-  const session = await getSession(req);
-  if (!session?.email) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-  }
-
   const { searchParams } = new URL(req.url);
-  const q = searchParams.get('query') ?? '';
-  const cap = searchParams.get('cap') ?? '';
-  const maxCost = Number(searchParams.get('maxCost') ?? 0);
-  const sort = (searchParams.get('sort') ?? '').toString();
+  const q = searchParams.get("query") ?? "";
+  const cap = searchParams.get("cap") ?? "";
+  const maxCost = Number(searchParams.get("maxCost") ?? 0);
+  const sort = (searchParams.get("sort") ?? "").toString();
 
   const where: any = {};
-  if (q) where.name = { contains: q, mode: 'insensitive' };
+  if (q) where.name = { contains: q, mode: "insensitive" };
   if (cap) where.caps = { some: { cap: { slug: { equals: cap } } } };
 
   const vendors = await prisma.vendor.findMany({
@@ -32,7 +25,7 @@ export async function GET(req: NextRequest) {
       caps: { include: { cap: true } },
       feedback: true,
     },
-    orderBy: { name: 'asc' },
+    orderBy: { name: "asc" },
   });
 
   const data = vendors
@@ -81,16 +74,15 @@ export async function GET(req: NextRequest) {
     })
     .filter((row) => (maxCost ? (row.minTierCost ?? Infinity) <= maxCost : true));
 
-  // optional sorting via ?sort=
   data.sort((a, b) => {
     switch (sort) {
-      case 'rating_asc':
+      case "rating_asc":
         return (a.avgRating ?? Infinity) - (b.avgRating ?? Infinity);
-      case 'rating_desc':
+      case "rating_desc":
         return (b.avgRating ?? -1) - (a.avgRating ?? -1);
-      case 'cost_min_asc':
+      case "cost_min_asc":
         return (a.minTierCost ?? 1e9) - (b.minTierCost ?? 1e9);
-      case 'name_asc':
+      case "name_asc":
         return a.name.localeCompare(b.name);
       default:
         return (
@@ -104,11 +96,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  // 🔐 Admin-only create
-  const session = await getSession(req);
-  const isAdmin = !!session?.isAdmin;
-  if (!isAdmin) {
-    return NextResponse.json({ error: 'admin only' }, { status: 403 });
+  const session = await getSessionFromRequest(req);
+  if (!session?.isAdmin) {
+    return NextResponse.json({ error: "admin only" }, { status: 403 });
   }
 
   const body = await req.json();
@@ -123,7 +113,7 @@ export async function POST(req: NextRequest) {
     capabilities = [],
   } = body || {};
 
-  if (!name) return NextResponse.json({ error: 'name required' }, { status: 400 });
+  if (!name) return NextResponse.json({ error: "name required" }, { status: 400 });
 
   const vendor = await prisma.vendor.create({
     data: { name, overview, platforms, industries, serviceOptions, raterTrainingSpeed },
@@ -136,7 +126,7 @@ export async function POST(req: NextRequest) {
         tierLabel: t.tierLabel,
         hourlyUsdMin: t.hourlyUsdMin ?? null,
         hourlyUsdMax: t.hourlyUsdMax ?? null,
-        currency: t.currency ?? 'USD',
+        currency: t.currency ?? "USD",
         notes: t.notes ?? null,
       })),
     });
