@@ -25,7 +25,7 @@ function money(n?: number | null) {
 
 export default async function VendorPage({ params }: { params: { id: string } }) {
   // 👇 Require login
-  const session = await getSession();
+  onst session = await verifySession();
   if (!session?.email) {
     redirect(`/signin?callbackUrl=/vendor/${params.id}`);
   }
