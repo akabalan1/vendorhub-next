@@ -1,7 +1,6 @@
 import './globals.css';
 import React from 'react';
 import Providers from './providers';
-import UserMenu from './components/UserMenu';
 
 export const metadata = { title: 'VendorHub', description: 'Partner directory & feedback' };
 
@@ -18,7 +17,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   Centralized partner directory, filters, and evergreen feedback.
                 </p>
               </div>
-              <UserMenu />
             </header>
             {children}
           </div>
