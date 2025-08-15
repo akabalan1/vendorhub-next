@@ -5,14 +5,20 @@ export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+// ✅ no "@/lib/auth" anymore
 import { verifySession } from '@/lib/session';
 
-// GET /api/vendors/:id  -> full vendor details
 export async function GET(
   _req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    // Optional: require login for this API; comment out if you want it public
+    const session = await verifySession();
+    if (!session?.email) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+    }
+
     const v = await prisma.vendor.findUnique({
       where: { id: params.id },
       include: {
@@ -22,26 +28,10 @@ export async function GET(
       },
     });
 
-    if (!v) {
-      return NextResponse.json({ error: 'not found' }, { status: 404 });
-    }
+    if (!v) return NextResponse.json({ error: 'not found' }, { status: 404 });
 
     return NextResponse.json({ data: v });
   } catch (err: any) {
     return NextResponse.json({ error: err?.message || 'error' }, { status: 500 });
   }
 }
-
-/**
- * If you later need to allow edits, you can uncomment PUT and guard by admin:
- *
- * export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
- *   const session = await verifySession();
- *   if (!session?.user?.isAdmin) {
- *     return NextResponse.json({ error: 'forbidden' }, { status: 403 });
- *   }
- *   const body = await req.json();
- *   const updated = await prisma.vendor.update({ where: { id: params.id }, data: body });
- *   return NextResponse.json({ ok: true, data: updated });
- * }
- */
