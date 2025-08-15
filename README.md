@@ -3,26 +3,30 @@
 ## Local Dev (optional)
 ```bash
 npm i
-cp .env.example .env # set DATABASE_URL, AUTH_SECRET, NEXT_PUBLIC_GOOGLE_CLIENT_ID, ADMIN_EMAILS
+cp .env.example .env # set DATABASE_URL and AUTH_SECRET
 npx prisma migrate dev
 npm run dev
+# create an admin invite and redeem it to sign in
 ```
 
 ## Authentication
 
-This project uses [Google Identity Services](https://developers.google.com/identity) for authentication.
+### Admin invites
+Existing admins create one‑time invites for new users.
 
-1. Create a Google Cloud project and enable Google Identity Services.
-2. Configure an OAuth 2.0 Client ID for a web application.
-3. Add `http://localhost:3000` to the authorized JavaScript origins for local development.
-4. Set the client ID as `NEXT_PUBLIC_GOOGLE_CLIENT_ID` (or `GOOGLE_CLIENT_ID`) in your environment.
+### Redeem → preAuth → passkey setup → full session
+1. A user redeems an invite at `/invite` which establishes a short‑lived `preAuth` session.
+2. The user is sent to `/setup-passkey` to register a passkey.
+3. Successful registration upgrades the session to full access.
+
+### Session cookie
+Sessions live in the `vh_session` cookie signed with `AUTH_SECRET` and last ~30 days.
+If fewer than 7 days remain, middleware issues a fresh cookie, enabling rolling renewal.
 
 ## Environment
 
 - `DATABASE_URL` – connection string for Postgres
 - `AUTH_SECRET` – secret used to sign authentication tokens
-- `GOOGLE_CLIENT_ID` or `NEXT_PUBLIC_GOOGLE_CLIENT_ID` – client ID from Google Identity Services
-- `ADMIN_EMAILS` – comma‑separated emails with admin access. During sign‑in, if the user's email (case‑insensitive) matches one of these, the JWT will include `isAdmin: true`.
 
 ## Deploy (Vercel + Neon, recommended)
 
