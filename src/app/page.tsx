@@ -13,7 +13,7 @@ function money(n?: number | null) {
 
 export default async function Home() {
   // 👇 Require login before rendering the table
-  const session = await getSession();
+  const session = await verifySession();
   if (!session?.email) {
     redirect(`/signin?callbackUrl=/`);
   }
