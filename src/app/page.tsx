@@ -5,6 +5,7 @@ import Link from 'next/link';
 import React from 'react';
 import { verifySession } from '@/lib/session';
 import { redirect } from 'next/navigation';
+import SignOutButton from './components/SignOutButton';
 
 function money(n?: number | null) {
   if (n == null) return '—';
@@ -53,12 +54,7 @@ export default async function Home() {
     <main className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">VendorHub</h1>
-        <Link
-          href="/api/signout"
-          className="rounded-xl border border-gray-300 px-3 py-2 text-sm hover:bg-gray-100"
-        >
-          Sign out
-        </Link>
+        <SignOutButton />
       </div>
 
       {/* Simple table (same look you had) */}
