@@ -5,7 +5,7 @@ export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { auth } from '@/lib/auth';
+import { getSession } from '@/lib/auth';
 import { z } from 'zod';
 
 // ---- Validation schema (coerce numbers coming from JSON/form)
@@ -23,8 +23,8 @@ const FeedbackSchema = z.object({
 export async function POST(req: NextRequest) {
   try {
     // 🔐 Any authenticated user may post feedback
-    const session = await auth();
-    if (!session?.user?.email) {
+    const session = getSession(req);
+    if (!session?.email) {
       return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
     }
 
@@ -42,8 +42,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Prefer session name, fall back to email (before @), then "anon"
-    const sessionName = session.user.name?.trim();
-    const emailLocal = session.user.email?.split('@')[0] ?? '';
+    const sessionName = session.name?.trim();
+    const emailLocal = session.email?.split('@')[0] ?? '';
     const author =
       (sessionName && sessionName.length > 0 ? sessionName : emailLocal) || 'anon';
 
