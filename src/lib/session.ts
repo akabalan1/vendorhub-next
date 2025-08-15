@@ -17,6 +17,7 @@ export type Session = {
   email: string;
   name?: string;
   isAdmin?: boolean;
+  preAuth?: boolean;
 };
 
 export async function signSession(
