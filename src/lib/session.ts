@@ -1,6 +1,7 @@
 // src/lib/session.ts
 import { SignJWT, jwtVerify } from "jose";
 import type { NextRequest } from "next/server";
+import { cookies } from "next/headers";
 
 const COOKIE_NAME = "vh_session";
 const ISSUER = "vendorhub";
@@ -38,6 +39,11 @@ export async function verifyToken(token?: string): Promise<Session | null> {
   } catch {
     return null;
   }
+}
+
+export async function verifySession(): Promise<Session | null> {
+  const token = cookies().get(COOKIE_NAME)?.value;
+  return verifyToken(token);
 }
 
 export async function getSessionFromRequest(

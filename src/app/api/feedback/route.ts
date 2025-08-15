@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
     }
 
     const session = await verifySession();
-    const author = session?.user?.email || b.author || 'anon';
+    const author = session?.email || b.author || 'anon';
 
     const fb = await prisma.feedback.create({
       data: {
