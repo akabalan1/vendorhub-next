@@ -3,7 +3,7 @@ import { prisma } from '@/lib/db';
 import { computeAvgRating } from '@/lib/scoring';
 import Link from 'next/link';
 import React from 'react';
-import { getSession } from '@/lib/auth';
+import { verifySession } from '@/lib/session';
 import { redirect } from 'next/navigation';
 
 function money(n?: number | null) {
