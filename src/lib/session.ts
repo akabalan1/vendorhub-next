@@ -18,6 +18,7 @@ export type Session = {
   name?: string;
   isAdmin?: boolean;
   preAuth?: boolean;
+  stage?: "pre" | "full";
 };
 
 export async function signSession(
