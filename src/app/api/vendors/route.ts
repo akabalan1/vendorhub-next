@@ -96,7 +96,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await verifySession();
+  const session = await getSessionFromRequest(req);
   if (!session?.isAdmin) {
     return NextResponse.json({ error: "admin only" }, { status: 403 });
   }
