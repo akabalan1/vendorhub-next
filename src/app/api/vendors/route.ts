@@ -45,8 +45,8 @@ export async function GET(req: NextRequest) {
       const minTierCost =
         v.costTiers
           .map((t) => t.hourlyUsdMin ?? t.hourlyUsdMax ?? 0)
-          .filter(Boolean)
-          .sort((a, b) => a - b)[0] || null;
+          .filter((n) => n != null)
+          .sort((a, b) => a - b)[0] ?? null;
 
       const ratings: number[] = [];
       for (const f of v.feedback) {
