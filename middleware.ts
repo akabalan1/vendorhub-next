@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { jwtVerify } from "jose";
-import { signSession, sessionCookie } from "@/lib/session";
+import { getSession, signSession, sessionCookie } from "@/lib/session";
 
 const PUBLIC_PATHS = [
   "/signin",
@@ -14,19 +13,7 @@ const PUBLIC_PATHS = [
   "/sitemap.xml",
 ];
 
-const ISSUER = "vendorhub";
 const DAY_MS = 24 * 60 * 60 * 1000;
-
-async function getSession(token?: string) {
-  if (!token) return null;
-  try {
-    const secret = new TextEncoder().encode(process.env.AUTH_SECRET || "");
-    const { payload } = await jwtVerify(token, secret, { issuer: ISSUER });
-    return payload as any;
-  } catch {
-    return null;
-  }
-}
 
 export async function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
@@ -35,8 +22,7 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  const token = req.cookies.get("vh_session")?.value;
-  const session = await getSession(token);
+  const session = await getSession(req);
 
   if (process.env.AUTH_DEBUG === "1") {
     console.log("[mw]", pathname, "user:", session?.email || null);

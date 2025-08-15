@@ -3,8 +3,6 @@ import { prisma } from '@/lib/db';
 import { computeAvgRating } from '@/lib/scoring';
 import Link from 'next/link';
 import React from 'react';
-import { verifySession } from '@/lib/session';
-import { redirect } from 'next/navigation';
 import SignOutButton from './components/SignOutButton';
 
 function money(n?: number | null) {
@@ -13,12 +11,6 @@ function money(n?: number | null) {
 }
 
 export default async function Home() {
-  // 👇 Require login before rendering the table
-  const session = await verifySession();
-  if (!session?.email) {
-    redirect(`/signin?callbackUrl=/`);
-  }
-
   // fetch vendors (exactly like you had before)
   const vendors = await prisma.vendor.findMany({
     include: {

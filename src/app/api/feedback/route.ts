@@ -5,7 +5,7 @@ export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { verifySession } from '@/lib/session';
+import { getSession } from '@/lib/session';
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,8 +14,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'vendorId required' }, { status: 400 });
     }
 
-    const session = await verifySession();
-    const author = session?.email || b.author || 'anon';
+    const session = await getSession();
+    if (!session?.email) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+    }
+    const author = session.email;
 
     const fb = await prisma.feedback.create({
       data: {

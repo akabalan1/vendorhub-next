@@ -44,15 +44,10 @@ export async function verifyToken(token?: string): Promise<Session | null> {
   }
 }
 
-export async function verifySession(): Promise<Session | null> {
-  const token = cookies().get(COOKIE_NAME)?.value;
-  return verifyToken(token);
-}
-
-export async function getSessionFromRequest(
-  req: NextRequest
-): Promise<Session | null> {
-  const token = req.cookies.get(COOKIE_NAME)?.value;
+export async function getSession(req?: NextRequest): Promise<Session | null> {
+  const token = req
+    ? req.cookies.get(COOKIE_NAME)?.value
+    : cookies().get(COOKIE_NAME)?.value;
   return verifyToken(token);
 }
 
