@@ -4,7 +4,6 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 // If NextAuth is wired, we'll try to read the current user for default author.
 // Safe even if not signed in: it will just be undefined.
-import { useSession } from 'next-auth/react';
 
 type Props = {
   vendorId: string;
@@ -12,11 +11,7 @@ type Props = {
 
 export default function AddFeedback({ vendorId }: Props) {
   const router = useRouter();
-  const { data: session } = useSession?.() ?? ({} as any);
-
-  const defaultAuthor =
-    (session?.user?.name as string | undefined) ??
-    (session?.user?.email ? session.user.email.split('@')[0] : '');
+  const defaultAuthor = '';
 
   const [open, setOpen] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
