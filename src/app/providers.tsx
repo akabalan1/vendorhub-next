@@ -1,5 +1,11 @@
+// src/app/providers.tsx
 'use client';
-import { SessionProvider } from 'next-auth/react';
+import * as React from 'react';
+
+/**
+ * Lightweight provider wrapper.
+ * (We removed next-auth's SessionProvider.)
+ */
 export default function Providers({ children }: { children: React.ReactNode }) {
-  return <SessionProvider>{children}</SessionProvider>;
+  return <>{children}</>;
 }
