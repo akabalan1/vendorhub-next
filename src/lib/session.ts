@@ -22,11 +22,12 @@ export async function signSession(
   payload: Session,
   maxAgeSec = 60 * 60 * 24 * 30 // 30 days
 ) {
+  const expires = Math.floor(Date.now() / 1000) + maxAgeSec;
   return await new SignJWT(payload as any)
     .setProtectedHeader({ alg: "HS256", typ: "JWT" })
     .setIssuer(ISSUER)
     .setIssuedAt()
-    .setExpirationTime(maxAgeSec)
+    .setExpirationTime(expires)
     .sign(secretKey());
 }
 
