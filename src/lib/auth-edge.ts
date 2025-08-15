@@ -63,17 +63,30 @@ export const authConfig = {
       return addr.endsWith("@meta.com");
     },
 
-    // Put id + isAdmin in the session
-    async session(params: {
-      session: import("next-auth").Session;
-      user: { id: string; email?: string | null; isAdmin?: boolean };
-      token?: unknown;
+    // Put custom claims in the JWT
+    async jwt({ token, user }: {
+      token: { isAdmin?: boolean; sub?: string } & import("next-auth/jwt").JWT;
+      user?: { id?: string; email?: string | null };
     }) {
-      const { session, user } = params;
+      if (user?.email) {
+        const emailLower = user.email.toLowerCase();
+        token.isAdmin = ADMIN_EMAILS.includes(emailLower);
+      }
+      if (user?.id) token.sub = user.id;
+      return token;
+    },
+
+    // Put id + isAdmin in the session
+    async session({
+      session,
+      token,
+    }: {
+      session: import("next-auth").Session;
+      token: { isAdmin?: boolean; sub?: string };
+    }) {
       if (session.user) {
-        session.user.id = user.id;
-        const emailLower = (user.email ?? "").toLowerCase();
-        session.user.isAdmin = !!user.isAdmin || ADMIN_EMAILS.includes(emailLower);
+        session.user.id = token.sub as string;
+        session.user.isAdmin = token.isAdmin as boolean;
       }
       return session;
     },

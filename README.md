@@ -3,10 +3,16 @@
 ## Local Dev (optional)
 ```bash
 npm i
-cp .env.example .env # set DATABASE_URL
+cp .env.example .env # set DATABASE_URL, EMAIL_FROM, RESEND_API_KEY, ADMIN_EMAILS
 npx prisma migrate dev
 npm run dev
 ```
+
+## Environment
+
+- `DATABASE_URL` – connection string for Postgres
+- `EMAIL_FROM` and `RESEND_API_KEY` – used for magic link emails
+- `ADMIN_EMAILS` – comma‑separated emails with admin access. During sign‑in, if the user's email (case‑insensitive) matches one of these, the JWT will include `isAdmin: true`.
 
 ## Deploy (Vercel + Neon, recommended)
 
