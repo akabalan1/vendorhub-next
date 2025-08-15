@@ -13,7 +13,7 @@ function secretKey() {
 }
 
 export type Session = {
-  sub: string;       // Google user id
+  sub: string;       // user id
   email: string;
   name?: string;
   isAdmin?: boolean;
