@@ -3,7 +3,7 @@ import { prisma } from '@/lib/db';
 import { computeAvgRating } from '@/lib/scoring';
 import Link from 'next/link';
 import React from 'react';
-import { auth } from '@/lib/auth';
+import { getSession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import AddFeedback from './AddFeedback.client';
 
@@ -25,8 +25,8 @@ function money(n?: number | null) {
 
 export default async function VendorPage({ params }: { params: { id: string } }) {
   // 👇 Require login
-  const session = await auth();
-  if (!session?.user?.email) {
+  const session = await getSession();
+  if (!session?.email) {
     redirect(`/signin?callbackUrl=/vendor/${params.id}`);
   }
 

@@ -6,12 +6,12 @@ export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { auth } from '@/lib/auth';
+import { getSession } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
   // 🔐 Require an authenticated session for listing vendors
-  const session = await auth();
-  if (!session?.user?.email) {
+  const session = await getSession(req);
+  if (!session?.email) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
@@ -105,8 +105,8 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   // 🔐 Admin-only create
-  const session = await auth();
-  const isAdmin = !!(session?.user && (session.user as any).isAdmin);
+  const session = await getSession(req);
+  const isAdmin = !!session?.isAdmin;
   if (!isAdmin) {
     return NextResponse.json({ error: 'admin only' }, { status: 403 });
   }

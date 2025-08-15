@@ -1,6 +1,6 @@
 'use client';
 import { useSession } from 'next-auth/react';
-import { signIn, signOut } from 'next-auth/react';
+import { signIn } from 'next-auth/react';
 
 export default function UserMenu() {
   const { data } = useSession();
@@ -19,9 +19,9 @@ export default function UserMenu() {
       {(user as any).isAdmin ? (
         <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs">Admin</span>
       ) : null}
-      <button onClick={() => signOut()} className="text-gray-600 hover:text-gray-900">
+      <a href="/api/signout" className="text-gray-600 hover:text-gray-900">
         Sign out
-      </button>
+      </a>
     </div>
   );
 }

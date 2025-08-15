@@ -132,3 +132,8 @@ export const authConfig = {
 } satisfies Parameters<typeof NextAuth>[0];
 
 export const { handlers, auth, signIn, signOut } = NextAuth(authConfig);
+
+export async function getSession(req?: any) {
+  const session = await auth(req as any);
+  return session?.user ?? null;
+}
