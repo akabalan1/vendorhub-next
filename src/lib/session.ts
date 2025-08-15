@@ -65,3 +65,7 @@ export const sessionCookie = {
     path: "/",
   },
 };
+
+export function clearSession() {
+  cookies().set(sessionCookie.name, "", { ...sessionCookie.options, maxAge: 0 });
+}
