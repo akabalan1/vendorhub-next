@@ -25,7 +25,7 @@ function money(n?: number | null) {
 
 export default async function VendorPage({ params }: { params: { id: string } }) {
   // 👇 Require login before showing vendor details
-  const session = await verifySession();
+  const session = await verifySession(); // ✅ fix: "const", not "onst"
   if (!session?.email) {
     redirect(`/signin?callbackUrl=/vendor/${params.id}`);
   }
@@ -174,4 +174,52 @@ export default async function VendorPage({ params }: { params: { id: string } })
 
       {/* Feedback */}
       <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-        <
+        <div className="mb-2 flex items-center justify-between">
+          <h3 className="text-base font-semibold">Feedback ({v.feedback.length})</h3>
+          <AddFeedback vendorId={v.id} />
+        </div>
+
+        {v.feedback.length ? (
+          <ul className="space-y-2">
+            {v.feedback.map((f) => (
+              <li key={f.id} className="rounded-xl border border-gray-200 p-3">
+                <div className="flex items-center justify-between text-sm">
+                  <div className="font-medium">{f.author || 'anon'}</div>
+                  <div>{new Date(f.createdAt).toLocaleDateString()}</div>
+                </div>
+                {f.text ? <div className="mt-1 text-sm text-gray-700">{f.text}</div> : null}
+                <div className="mt-1 text-xs text-gray-600">
+                  Quality/Speed/Comm:&nbsp;
+                  <span className="font-medium">
+                    {f.ratingQuality ?? '—'}/{f.ratingSpeed ?? '—'}/{f.ratingComm ?? '—'}
+                  </span>
+                </div>
+                <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-600">
+                  {f.tags?.length ? (
+                    <div className="flex flex-wrap gap-1">
+                      {f.tags.map((t, i) => (
+                        <span
+                          key={i}
+                          className="rounded-full border border-gray-300 bg-gray-50 px-2 py-0.5"
+                        >
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                  {f.link ? (
+                    <a className="underline" href={f.link} target="_blank" rel="noreferrer">
+                      evidence
+                    </a>
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div className="text-sm text-gray-500">No feedback yet.</div>
+        )}
+      </div>
+    </main>
+  );
+}
