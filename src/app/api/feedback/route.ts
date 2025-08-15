@@ -1,24 +1,21 @@
 // src/app/api/feedback/route.ts
-export const dynamic = "force-dynamic";
+export const dynamic = 'force-dynamic';
 export const revalidate = 0;
-export const runtime = "nodejs";
+export const runtime = 'nodejs';
 
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
-import { getSessionFromRequest } from "@/lib/session";
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/db';
+import { verifySession } from '@/lib/session';
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getSessionFromRequest(req);
     const b = await req.json();
-
     if (!b?.vendorId) {
-      return NextResponse.json({ error: "vendorId required" }, { status: 400 });
+      return NextResponse.json({ error: 'vendorId required' }, { status: 400 });
     }
 
-    const author =
-      b.author ??
-      (session?.email ? session.email.split("@")[0] : "anon");
+    const session = await verifySession();
+    const author = session?.user?.email || b.author || 'anon';
 
     const fb = await prisma.feedback.create({
       data: {
@@ -27,7 +24,7 @@ export async function POST(req: NextRequest) {
         ratingQuality: b.ratingQuality ?? null,
         ratingSpeed: b.ratingSpeed ?? null,
         ratingComm: b.ratingComm ?? null,
-        text: b.text ?? "",
+        text: b.text ?? '',
         tags: Array.isArray(b.tags) ? b.tags : [],
         link: b.link ?? null,
         isPrivate: !!b.isPrivate,
@@ -35,6 +32,6 @@ export async function POST(req: NextRequest) {
     });
     return NextResponse.json({ ok: true, id: fb.id });
   } catch (err: any) {
-    return NextResponse.json({ error: err?.message || "error" }, { status: 500 });
+    return NextResponse.json({ error: err?.message || 'error' }, { status: 500 });
   }
 }
