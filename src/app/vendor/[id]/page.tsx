@@ -3,8 +3,6 @@ import { prisma } from '@/lib/db';
 import { computeAvgRating } from '@/lib/scoring';
 import Link from 'next/link';
 import React from 'react';
-import { verifySession } from '@/lib/session';
-import { redirect } from 'next/navigation';
 import AddFeedback from './AddFeedback.client';
 
 function fmtSvc(arr?: string[] | null) {
@@ -24,12 +22,6 @@ function money(n?: number | null) {
 }
 
 export default async function VendorPage({ params }: { params: { id: string } }) {
-  // 👇 Require login before showing vendor details
-  const session = await verifySession(); // ✅ fix: "const", not "onst"
-  if (!session?.email) {
-    redirect(`/signin?callbackUrl=/vendor/${params.id}`);
-  }
-
   const v = await prisma.vendor.findUnique({
     where: { id: params.id },
     include: {

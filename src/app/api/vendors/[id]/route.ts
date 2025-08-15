@@ -5,16 +5,15 @@ export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-// ✅ no "@/lib/auth" anymore
-import { verifySession } from '@/lib/session';
+import { getSession } from '@/lib/session';
 
 export async function GET(
   _req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    // Optional: require login for this API; comment out if you want it public
-    const session = await verifySession();
+    // Require login for this API
+    const session = await getSession();
     if (!session?.email) {
       return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
     }
