@@ -1,33 +1,53 @@
-import { signIn } from '@/lib/auth';
+"use client";
+
+import Script from "next/script";
+import { useEffect, useRef } from "react";
 
 export default function SignIn() {
-  async function action(formData: FormData) {
-    'use server';
-    const email = String(formData.get('email') || '');
-    await signIn('email', { email, redirectTo: '/' });
+  const divRef = useRef<HTMLDivElement>(null);
+
+  type CredentialResponse = { credential: string };
+
+  async function handleCredential(response: CredentialResponse) {
+    const res = await fetch("/api/signin", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ credential: response.credential }),
+    });
+
+    const data = await res.json();
+    window.location.href = data.callbackUrl || "/";
   }
+
+  function initialize() {
+    if (!window.google || !divRef.current) return;
+    window.google.accounts.id.initialize({
+      client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!,
+      callback: handleCredential,
+    });
+    window.google.accounts.id.renderButton(divRef.current, {
+      type: "standard",
+      theme: "outline",
+      size: "large",
+    });
+  }
+
+  useEffect(() => {
+    if (window.google) initialize();
+  }, []);
 
   return (
     <main className="mx-auto max-w-md rounded-2xl border border-gray-200 bg-white p-6">
+      <Script src="https://accounts.google.com/gsi/client" async defer onLoad={initialize} />
       <h1 className="text-xl font-semibold">Sign in</h1>
-      <p className="mt-1 text-sm text-gray-600">
-        Use your <b>@meta.com</b> email to get a magic link.
-      </p>
-      <form action={action} className="mt-4 space-y-3">
-        <input
-          type="email"
-          name="email"
-          required
-          placeholder="you@meta.com"
-          className="w-full rounded-xl border border-gray-300 px-3 py-2"
-        />
-        <button
-          className="w-full rounded-xl bg-black px-3 py-2 text-white hover:bg-gray-900"
-          type="submit"
-        >
-          Send link
-        </button>
-      </form>
+      <div ref={divRef} className="mt-4" />
     </main>
   );
 }
+
+declare global {
+  interface Window {
+    google?: any;
+  }
+}
+
