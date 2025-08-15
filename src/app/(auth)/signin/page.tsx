@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 declare global {
@@ -9,7 +9,15 @@ declare global {
   }
 }
 
-export default function SignIn() {
+export default function SignInPage() {
+  return (
+    <Suspense fallback={null}>
+      <SignIn />
+    </Suspense>
+  );
+}
+
+function SignIn() {
   const router = useRouter();
   const search = useSearchParams();
   const btnRef = useRef<HTMLDivElement>(null);
