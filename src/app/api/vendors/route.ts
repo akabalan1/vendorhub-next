@@ -6,6 +6,11 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/session";
+import {
+  parseVendorFilters,
+  buildVendorWhereOrder,
+  processVendors,
+} from "@/lib/vendorFilters";
 
 export async function GET(req: NextRequest) {
   const session = await getSession();
@@ -13,14 +18,16 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   const { searchParams } = new URL(req.url);
-  const q = searchParams.get("query") ?? "";
-  const cap = searchParams.get("cap") ?? "";
-  const maxCost = Number(searchParams.get("maxCost") ?? 0);
-  const sort = (searchParams.get("sort") ?? "").toString();
+  const params: Record<string, string | string[] | undefined> = {};
+  searchParams.forEach((value, key) => {
+    const current = params[key];
+    if (current === undefined) params[key] = value;
+    else if (Array.isArray(current)) current.push(value);
+    else params[key] = [current, value];
+  });
 
-  const where: any = {};
-  if (q) where.name = { contains: q, mode: "insensitive" };
-  if (cap) where.caps = { some: { cap: { slug: { equals: cap } } } };
+  const filters = parseVendorFilters(params);
+  const { where, orderBy } = buildVendorWhereOrder(filters);
 
   const vendors = await prisma.vendor.findMany({
     where,
@@ -29,71 +36,26 @@ export async function GET(req: NextRequest) {
       caps: { include: { cap: true } },
       feedback: true,
     },
-    orderBy: { name: "asc" },
+    orderBy,
   });
 
-  const data = vendors
-    .map((v) => {
-      const tiers = v.costTiers
-        .slice()
-        .sort((a, b) => a.tierLabel.localeCompare(b.tierLabel))
-        .map((t) => ({
-          id: t.id,
-          tierLabel: t.tierLabel,
-          hourlyUsdMin: t.hourlyUsdMin,
-          hourlyUsdMax: t.hourlyUsdMax,
-          currency: t.currency,
-          notes: t.notes,
-        }));
+  const rows = processVendors(vendors, filters);
 
-      const minTierCost =
-        v.costTiers
-          .map((t) => t.hourlyUsdMin ?? t.hourlyUsdMax ?? 0)
-          .filter((n) => n != null)
-          .sort((a, b) => a - b)[0] ?? null;
-
-      const ratings: number[] = [];
-      for (const f of v.feedback) {
-        if (f.ratingQuality != null) ratings.push(f.ratingQuality);
-        if (f.ratingSpeed != null) ratings.push(f.ratingSpeed);
-        if (f.ratingComm != null) ratings.push(f.ratingComm);
-      }
-      const avgRating = ratings.length
-        ? Math.round((ratings.reduce((a, b) => a + b, 0) / ratings.length) * 10) / 10
-        : null;
-
-      return {
-        id: v.id,
-        name: v.name,
-        overview: v.overview,
-        raterTrainingSpeed: (v as any).raterTrainingSpeed ?? null,
-        platforms: v.platforms,
-        industries: v.industries,
-        serviceOptions: v.serviceOptions,
-        capabilities: v.caps.map((c) => c.cap),
-        costTiers: tiers,
-        minTierCost,
-        avgRating,
-      };
-    })
-    .filter((row) => (maxCost ? (row.minTierCost ?? Infinity) <= maxCost : true));
-
-  data.sort((a, b) => {
-    switch (sort) {
-      case "rating_asc":
-        return (a.avgRating ?? Infinity) - (b.avgRating ?? Infinity);
-      case "rating_desc":
-        return (b.avgRating ?? -1) - (a.avgRating ?? -1);
-      case "cost_min_asc":
-        return (a.minTierCost ?? 1e9) - (b.minTierCost ?? 1e9);
-      case "name_asc":
-        return a.name.localeCompare(b.name);
-      default:
-        return (
-          (b.avgRating ?? -1) - (a.avgRating ?? -1) ||
-          (a.minTierCost ?? 1e9) - (b.minTierCost ?? 1e9)
-        );
-    }
+  const data = rows.map((r) => {
+    const v = vendors.find((v) => v.id === r.id)!;
+    return {
+      id: r.id,
+      name: r.name,
+      overview: v.overview,
+      raterTrainingSpeed: (v as any).raterTrainingSpeed ?? null,
+      platforms: v.platforms,
+      industries: v.industries,
+      serviceOptions: r.serviceOptions,
+      capabilities: v.caps.map((c) => c.cap),
+      costTiers: r.costTiers,
+      minTierCost: r.minTierCost,
+      avgRating: r.avgRating,
+    };
   });
 
   return NextResponse.json({ data });
