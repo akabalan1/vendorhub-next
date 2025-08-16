@@ -1,18 +1,72 @@
-// middleware.ts
+// /middleware.ts (root)
 import { NextRequest, NextResponse } from "next/server";
-import { getSessionFromRequest, signSession, sessionCookie } from "./src/lib/session-edge";
+import { SignJWT, jwtVerify } from "jose";
 
+/**
+ * Self-contained Edge auth gate:
+ * - Verifies `vh_session` (HS256) using AUTH_SECRET
+ * - Redirects unauthenticated users to /signin?callbackUrl=...
+ * - Refreshes cookie when < 1 day remains
+ * - No imports from app code (prevents Edge bundle failures)
+ */
+
+const COOKIE_NAME = "vh_session";
+const COOKIE_OPTS = {
+  httpOnly: true,
+  secure: true,
+  sameSite: "lax" as const,
+  path: "/",
+};
+const ISSUER = "vendorhub";
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+type Session = {
+  sub: string;
+  email: string;
+  role?: "admin" | "user";
+  exp?: number; // seconds since epoch
+  [k: string]: any;
+};
+
+function secretKey() {
+  const s = process.env.AUTH_SECRET;
+  if (!s) throw new Error("Missing AUTH_SECRET");
+  return new TextEncoder().encode(s);
+}
+
+async function verifyToken(token?: string): Promise<Session | null> {
+  if (!token) return null;
+  try {
+    const { payload } = await jwtVerify(token, secretKey(), { issuer: ISSUER });
+    return payload as Session;
+  } catch {
+    return null;
+  }
+}
+
+async function reSignSession(session: Session, maxAgeDays = 30) {
+  const { exp, ...payload } = session;
+  const now = Math.floor(Date.now() / 1000);
+  return await new SignJWT(payload)
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt(now)
+    .setIssuer(ISSUER)
+    .setExpirationTime(now + maxAgeDays * 24 * 60 * 60)
+    .sign(secretKey());
+}
+
+// Public routes allowed without auth (keep onboarding working)
 const PUBLIC_EXACT = new Set<string>([
   "/signin",
   "/invite",
-  "/setup-passkey", // allow page; it validates its own preAuth cookie
+  "/setup-passkey",
   "/api/health",
 ]);
 
 const PUBLIC_PREFIX = [
-  "/api/auth",      // your auth helpers
-  "/api/webauthn",  // passkey registration/login endpoints
-  "/_next",         // next assets
+  "/api/auth",
+  "/api/webauthn",
+  "/_next",
   "/favicon.ico",
   "/robots.txt",
   "/sitemap.xml",
@@ -21,12 +75,9 @@ const PUBLIC_PREFIX = [
   "/assets",
 ];
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-
 export async function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
 
-  // Public routes pass through
   const isPublic =
     PUBLIC_EXACT.has(pathname) ||
     PUBLIC_PREFIX.some((p) => pathname.startsWith(p));
@@ -37,28 +88,26 @@ export async function middleware(req: NextRequest) {
     return res;
   }
 
-  // Strict auth: any failure -> redirect to /signin
-  const session = await getSessionFromRequest(req);
+  const token = req.cookies.get(COOKIE_NAME)?.value;
+  const session = await verifyToken(token);
+
   if (!session) {
     const url = req.nextUrl.clone();
     url.pathname = "/signin";
-    url.search = ""; // rebuild to ensure proper encoding
+    url.search = "";
     url.searchParams.set("callbackUrl", pathname + (search || ""));
     return NextResponse.redirect(url, { status: 307 });
   }
 
-  // Authenticated → pass through; refresh cookie if < 1 day left
   const res = NextResponse.next();
   res.headers.set("x-vendorhub-mw", "auth");
 
+  // Refresh session when <1 day remains
   const expMs = (session.exp ?? 0) * 1000;
   if (expMs && expMs - Date.now() < DAY_MS) {
-    const renewed = await signSession(
-      { sub: session.sub, email: session.email, role: session.role },
-      30
-    );
-    res.cookies.set(sessionCookie.name, renewed, {
-      ...sessionCookie.options,
+    const renewed = await reSignSession(session, 30);
+    res.cookies.set(COOKIE_NAME, renewed, {
+      ...COOKIE_OPTS,
       maxAge: 60 * 60 * 24 * 30,
     });
   }
@@ -66,6 +115,11 @@ export async function middleware(req: NextRequest) {
   return res;
 }
 
+/**
+ * Matcher:
+ * - Run on everything except common static asset paths
+ * - This DOES match `/` (root)
+ */
 export const config = {
   matcher: ["/(.*)"],
 };
