@@ -1,32 +1,36 @@
 // src/app/signin/page.tsx
 import React from "react";
 import { redirect } from "next/navigation";
+import { prisma } from "@/lib/db";
 
-export const dynamic = "force-dynamic";
+export const runtime = "nodejs";        // ensure server action runs in Node
+export const dynamic = "force-dynamic"; // don't cache this page
 
-// server action
+// server action (no HTTP fetch)
 async function submitAccessRequest(formData: FormData) {
   "use server";
-  const email = String(formData.get("email") || "").trim().toLowerCase();
-  const name = String(formData.get("name") || "").trim();
-  const message = String(formData.get("message") || "").trim();
+  const email   = String(formData.get("email") || "").trim().toLowerCase();
+  const name    = (formData.get("name") as string | null)?.trim() || null;
+  const message = (formData.get("message") as string | null)?.trim() || null;
+  const trap    = (formData.get("company") as string | null) || ""; // honeypot
+
+  if (!/@meta\.com$/i.test(email) || trap) {
+    redirect("/signin?requested=error");
+  }
 
   try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || ""}/api/access-requests`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ email, name, message, company: "" }),
-      cache: "no-store",
+    await prisma.accessRequest.create({
+      data: {
+        id: crypto.randomUUID(),
+        email,
+        name,
+        message,
+        status: "PENDING",
+      },
     });
-
-    if (!res.ok) {
-      // send a simple error code to the page
-      redirect("/signin?requested=error");
-    }
-
-    // success: back to the page with a success state
     redirect("/signin?requested=ok");
-  } catch {
+  } catch (e) {
+    console.error("access request failed", e);
     redirect("/signin?requested=error");
   }
 }
@@ -34,6 +38,8 @@ async function submitAccessRequest(formData: FormData) {
 function RequestForm() {
   return (
     <form action={submitAccessRequest} className="space-y-3">
+      {/* honeypot field (hidden) */}
+      <input name="company" className="hidden" tabIndex={-1} autoComplete="off" />
       <div>
         <label className="block text-sm font-medium">Work email (@meta.com)</label>
         <input name="email" type="email" required className="mt-1 w-full rounded-md border px-3 py-2"/>
@@ -62,9 +68,9 @@ function RequestForm() {
   );
 }
 
+// ...keep the rest of your page exactly as you had it (banner rendering, “Already have access?” section, etc.)
 export default function Page({ searchParams }: { searchParams?: Record<string, string | string[] | undefined> }) {
   const state = typeof searchParams?.requested === "string" ? searchParams?.requested : undefined;
-
   return (
     <main className="min-h-[70vh] grid place-items-center p-6">
       <div className="w-full max-w-md rounded-2xl border p-6 bg-white space-y-5">
@@ -86,7 +92,7 @@ export default function Page({ searchParams }: { searchParams?: Record<string, s
         <details className="mt-4">
           <summary className="cursor-pointer text-sm text-gray-600">Already have access?</summary>
           <div className="mt-3">
-            {/* Your existing passkey sign-in UI goes here */}
+            {/* your existing passkey sign-in UI */}
           </div>
         </details>
       </div>
