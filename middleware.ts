@@ -2,40 +2,67 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionFromRequest, signSession, sessionCookie } from "./src/lib/session-edge";
 
-const PUBLIC_EXACT = new Set([
+const PUBLIC_EXACT = new Set<string>([
   "/signin",
   "/invite",
+  "/setup-passkey", // allow page; it validates its own preAuth cookie
   "/api/health",
 ]);
-const PUBLIC_PREFIX = ["/api/auth", "/_next", "/favicon.ico", "/robots.txt", "/sitemap.xml"];
 
-const DAY = 24 * 60 * 60 * 1000;
+const PUBLIC_PREFIX = [
+  "/api/auth",      // your auth helpers
+  "/api/webauthn",  // passkey registration/login endpoints
+  "/_next",         // next assets
+  "/favicon.ico",
+  "/robots.txt",
+  "/sitemap.xml",
+  "/manifest",
+  "/images",
+  "/assets",
+];
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 export async function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
 
-  // treat public paths/prefixes as pass-through
+  // Public routes pass through
   const isPublic =
     PUBLIC_EXACT.has(pathname) ||
     PUBLIC_PREFIX.some((p) => pathname.startsWith(p));
 
-  if (isPublic) return NextResponse.next();
+  if (isPublic) {
+    const res = NextResponse.next();
+    res.headers.set("x-vendorhub-mw", "public");
+    return res;
+  }
 
-  // strict: any error or missing session -> redirect to signin
+  // Strict auth: any failure -> redirect to /signin
   const session = await getSessionFromRequest(req);
   if (!session) {
-    const url = new URL("/signin", req.url);
-    url.searchParams.set("callbackUrl", pathname + search);
-    return NextResponse.redirect(url);
+    const url = req.nextUrl.clone();
+    url.pathname = "/signin";
+    url.search = ""; // rebuild to ensure proper encoding
+    url.searchParams.set("callbackUrl", pathname + (search || ""));
+    return NextResponse.redirect(url, { status: 307 });
   }
 
-  // refresh cookie if within 1 day of expiry (keeps “login once” UX)
+  // Authenticated → pass through; refresh cookie if < 1 day left
   const res = NextResponse.next();
+  res.headers.set("x-vendorhub-mw", "auth");
+
   const expMs = (session.exp ?? 0) * 1000;
-  if (expMs && expMs - Date.now() < DAY) {
-    const token = await signSession({ sub: session.sub, email: session.email, role: session.role });
-    res.cookies.set(sessionCookie.name, token, { ...sessionCookie.options, maxAge: 30 * 24 * 60 * 60 });
+  if (expMs && expMs - Date.now() < DAY_MS) {
+    const renewed = await signSession(
+      { sub: session.sub, email: session.email, role: session.role },
+      30
+    );
+    res.cookies.set(sessionCookie.name, renewed, {
+      ...sessionCookie.options,
+      maxAge: 60 * 60 * 24 * 30,
+    });
   }
+
   return res;
 }
 
