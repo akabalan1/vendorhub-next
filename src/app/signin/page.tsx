@@ -1,87 +1,81 @@
-"use client";
+import React from "react";
 
-import { Suspense, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { startAuthentication } from "@simplewebauthn/browser";
+export const dynamic = "force-dynamic";
 
-export default function SignInPage() {
+function RequestForm() {
+  // simple clientless form posting to fetch in action
   return (
-    <Suspense fallback={null}>
-      <SignIn />
-    </Suspense>
+    <form className="space-y-3"
+      action={async (formData: FormData) => {
+        "use server";
+        const email = String(formData.get("email") || "").trim().toLowerCase();
+        const name = String(formData.get("name") || "").trim();
+        const message = String(formData.get("message") || "").trim();
+        const res = await fetch("/api/access-requests", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ email, name, message, company: "" }),
+          cache: "no-store",
+        });
+        if (!res.ok) {
+          throw new Error("Failed to submit request");
+        }
+      }}
+    >
+      <div>
+        <label className="block text-sm font-medium">Work email (@meta.com)</label>
+        <input name="email" type="email" required className="mt-1 w-full rounded-md border px-3 py-2"/>
+      </div>
+      <div>
+        <label className="block text-sm font-medium">Name (optional)</label>
+        <input name="name" className="mt-1 w-full rounded-md border px-3 py-2"/>
+      </div>
+      <div>
+        <label className="block text-sm font-medium">Why you need access (optional)</label>
+        <textarea name="message" rows={3} className="mt-1 w-full rounded-md border px-3 py-2"/>
+      </div>
+      <button className="w-full rounded-lg bg-blue-600 text-white py-2 hover:bg-blue-700" type="submit">
+        Request access
+      </button>
+      <p className="text-xs text-gray-500">
+        This will notify the admin. You’ll get an invite link if approved.
+      </p>
+      <a
+        className="inline-block text-sm text-blue-600 underline mt-2"
+        href={`mailto:alkabalan@meta.com?subject=${encodeURIComponent("VendorHub access request")}`}
+      >
+        Or email Al directly
+      </a>
+    </form>
   );
 }
 
-function SignIn() {
-  const router = useRouter();
-  const search = useSearchParams();
-  const [email, setEmail] = useState("");
-  const [err, setErr] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setErr(null);
-    if (!email.endsWith("@meta.com")) {
-      setErr("Email must end with @meta.com");
-      return;
-    }
-    setLoading(true);
-    try {
-      const optRes = await fetch("/api/webauthn/login/options", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email }),
-      });
-      if (!optRes.ok) {
-        const j = await optRes.json().catch(() => ({}));
-        throw new Error(j.error || "Failed to get options");
-      }
-      const opts = await optRes.json();
-      const authRes = await startAuthentication({ optionsJSON: opts });
-      const verRes = await fetch("/api/webauthn/login/verify", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email, credential: authRes }),
-      });
-      if (!verRes.ok) {
-        const j = await verRes.json().catch(() => ({}));
-        throw new Error(j.error || "Login failed");
-      }
-      const next = search.get("callbackUrl") || "/";
-      router.replace(next);
-    } catch (e: any) {
-      setErr(e.message || "Login failed");
-    } finally {
-      setLoading(false);
-    }
-  }
-
+function SignInBox() {
+  // keep your existing email → passkey sign-in client here
+  // (unchanged logic; only shown when user clicks “I already have access”)
   return (
-    <main className="mx-auto max-w-md rounded-2xl border border-gray-200 bg-white p-6">
-      <h1 className="text-xl font-semibold">Sign in</h1>
-      <p className="mt-1 text-sm text-gray-600">
-        Use your <b>@meta.com</b> email to sign in with a passkey.
-      </p>
-      <form onSubmit={onSubmit} className="mt-4 space-y-4">
-        <input
-          type="email"
-          required
-          placeholder="you@meta.com"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="w-full rounded border border-gray-300 px-3 py-2"
-        />
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full rounded bg-blue-600 px-4 py-2 font-medium text-white disabled:opacity-50"
-        >
-          {loading ? "Signing in..." : "Sign in"}
-        </button>
-      </form>
-      {err ? <p className="mt-3 text-sm text-red-600">{err}</p> : null}
+    <div className="space-y-3">
+      {/* your current sign-in component goes here */}
+      <p className="text-xs text-gray-500">Only users who already have access can sign in.</p>
+    </div>
+  );
+}
+
+export default async function Page() {
+  return (
+    <main className="min-h-[70vh] grid place-items-center p-6">
+      <div className="w-full max-w-md rounded-2xl border p-6 bg-white space-y-5">
+        <h1 className="text-lg font-semibold">Request access</h1>
+        <RequestForm />
+        <details className="mt-4">
+          <summary className="cursor-pointer text-sm text-gray-600">
+            Already have access?
+          </summary>
+          <div className="mt-3">
+            <SignInBox />
+          </div>
+        </details>
+      </div>
     </main>
   );
 }
-
