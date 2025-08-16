@@ -61,6 +61,9 @@ const PUBLIC_EXACT = new Set<string>([
   "/invite",
   "/setup-passkey",
   "/api/health",
+  // add to PUBLIC_PREFIX in your middleware
+  "/api/access-requests",
+
 ]);
 
 const PUBLIC_PREFIX = [
