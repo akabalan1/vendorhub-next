@@ -10,6 +10,7 @@
     "seed": "ts-node --transpile-only prisma/seed.ts",
     "test": "npm run test:lib && vitest run",
     "test:lib": "ts-node --compiler-options '{\"module\":\"CommonJS\",\"moduleResolution\":\"node\"}' src/lib/vendorFilters.test.ts"
+    "test": "ts-node --compiler-options '{\"module\":\"CommonJS\",\"moduleResolution\":\"node\"}' src/lib/vendorFilters.test.ts && ts-node --compiler-options '{\"module\":\"CommonJS\",\"moduleResolution\":\"node\"}' middleware.test.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.16.1",
