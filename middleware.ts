@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession, signSession, sessionCookie } from "@/lib/session";
+import { getSession, signSession, sessionCookie } from "./src/lib/session";
 
 const PUBLIC_PATHS = [
   "/signin",
   "/invite",
-  "/api/auth/login",
-  "/api/auth/logout",
+  "/api/auth",
   "/api/health",
   "/_next",
   "/favicon.ico",
@@ -56,6 +55,6 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/:path*"],
 };
 
