@@ -3,16 +3,15 @@ import React from "react";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 
-export const runtime = "nodejs";        // ensure server action runs in Node
-export const dynamic = "force-dynamic"; // don't cache this page
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-// server action (no HTTP fetch)
 async function submitAccessRequest(formData: FormData) {
   "use server";
   const email   = String(formData.get("email") || "").trim().toLowerCase();
   const name    = (formData.get("name") as string | null)?.trim() || null;
   const message = (formData.get("message") as string | null)?.trim() || null;
-  const trap    = (formData.get("company") as string | null) || ""; // honeypot
+  const trap    = (formData.get("company") as string | null) || ""; // hidden honeypot
 
   if (!/@meta\.com$/i.test(email) || trap) {
     redirect("/signin?requested=error");
@@ -28,17 +27,19 @@ async function submitAccessRequest(formData: FormData) {
         status: "PENDING",
       },
     });
-    redirect("/signin?requested=ok");
   } catch (e) {
-    console.error("access request failed", e);
-    redirect("/signin?requested=error");
+    console.error("access request failed:", e);
+    redirect("/signin?requested=error"); // only on actual failure
   }
+
+  // ✅ Important: success redirect OUTSIDE the try/catch
+  redirect("/signin?requested=ok");
 }
 
 function RequestForm() {
   return (
     <form action={submitAccessRequest} className="space-y-3">
-      {/* honeypot field (hidden) */}
+      {/* hidden honeypot to deter bots */}
       <input name="company" className="hidden" tabIndex={-1} autoComplete="off" />
       <div>
         <label className="block text-sm font-medium">Work email (@meta.com)</label>
@@ -68,9 +69,9 @@ function RequestForm() {
   );
 }
 
-// ...keep the rest of your page exactly as you had it (banner rendering, “Already have access?” section, etc.)
 export default function Page({ searchParams }: { searchParams?: Record<string, string | string[] | undefined> }) {
-  const state = typeof searchParams?.requested === "string" ? searchParams?.requested : undefined;
+  const state = typeof searchParams?.requested === "string" ? searchParams.requested : undefined;
+
   return (
     <main className="min-h-[70vh] grid place-items-center p-6">
       <div className="w-full max-w-md rounded-2xl border p-6 bg-white space-y-5">
