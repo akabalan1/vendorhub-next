@@ -134,3 +134,16 @@ model WebAuthnChallenge {
   @@index([expiresAt])
 }
 
+// ----- Access requests (invite-only flow) -----
+
+model AccessRequest {
+  id        String   @id @db.Text
+  email     String   @db.Text
+  name      String?  @db.Text
+  message   String?  @db.Text
+  status    String   @default("PENDING") @db.Text  // PENDING | APPROVED | REJECTED
+  createdAt DateTime @default(now())
+
+  @@index([status], map: "AccessRequest_status_idx")
+  @@map("AccessRequest") // maps to existing table created via SQL
+}
