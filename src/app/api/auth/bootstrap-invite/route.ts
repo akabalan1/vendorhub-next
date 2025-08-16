@@ -44,3 +44,4 @@ export async function GET(req: Request) {
   const inviteUrl = `${url.origin}/invite?token=${encodeURIComponent(token)}`;
   return NextResponse.json({ url: inviteUrl });
 }
+
