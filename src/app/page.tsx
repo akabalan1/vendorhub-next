@@ -9,6 +9,33 @@ import {
   processVendors,
 } from '@/lib/vendorFilters';
 
+// 🔐 server-side guard (runs before any DB work)
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
+import { jwtVerify } from 'jose';
+
+const COOKIE_NAME = 'vh_session';
+const ISSUER = 'vendorhub';
+
+// Ensure this page is always executed at request time (not statically cached)
+export const dynamic = 'force-dynamic';
+
+async function requireAuth(callbackUrl: string) {
+  const token = cookies().get(COOKIE_NAME)?.value;
+  if (!token) {
+    redirect(`/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`);
+  }
+  try {
+    await jwtVerify(
+      token,
+      new TextEncoder().encode(process.env.AUTH_SECRET || ''),
+      { issuer: ISSUER }
+    );
+  } catch {
+    redirect(`/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`);
+  }
+}
+
 function money(n?: number | null) {
   if (n == null) return '—';
   return `$${Number(n).toFixed(0)}/hr`;
@@ -19,6 +46,9 @@ export default async function Home({
 }: {
   searchParams?: Record<string, string | string[] | undefined>;
 }) {
+  // 🔐 require a valid session before rendering anything
+  await requireAuth('/');
+
   const filters = parseVendorFilters(searchParams ?? {});
   const { where, orderBy } = buildVendorWhereOrder(filters);
 
