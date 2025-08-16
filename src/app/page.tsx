@@ -3,7 +3,6 @@ import { prisma } from '@/lib/db';
 import Link from 'next/link';
 import React from 'react';
 import Filters from './components/Filters';
-import SignOutButton from './components/SignOutButton';
 import {
   parseVendorFilters,
   buildVendorWhereOrder,
@@ -50,11 +49,6 @@ export default async function Home({
 
   return (
     <main className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">VendorHub</h1>
-        <SignOutButton />
-      </div>
-
       <Filters
         vendorOptions={vendorOptions}
         capabilityOptions={capabilityOptions}
